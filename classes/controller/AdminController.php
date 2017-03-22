@@ -36,6 +36,11 @@
  */
 class AdminControllerCore extends Controller
 {
+    const LEVEL_VIEW = 1;
+    const LEVEL_EDIT = 2;
+    const LEVEL_ADD = 3;
+    const LEVEL_DELETE = 4;
+
     // @codingStandardsIgnoreStart
     /** @var string */
     public static $currentIndex;
@@ -208,12 +213,12 @@ class AdminControllerCore extends Controller
      *
      * Usage:
      *
-     * array(
-     *      'actionName' => array(
-     *      'text' => $this->l('Message displayed on the submit button (mandatory)'),
-     *      'confirm' => $this->l('If set, this confirmation message will pop-up (optional)')),
-     *      'anotherAction' => array(...)
-     * );
+     * [
+     *      'actionName'    => [
+     *      'text'          => $this->l('Message displayed on the submit button (mandatory)'),
+     *      'confirm'       => $this->l('If set, this confirmation message will pop-up (optional)')),
+     *      'anotherAction' => [...]
+     * ];
      *
      * If your action is named 'actionName', you need to have a method named bulkactionName() that will be executed when the button is clicked.
      *
@@ -725,6 +730,26 @@ class AdminControllerCore extends Controller
     }
 
     /**
+     * Return the type of authorization on permissions page and option.
+     *
+     * @return int(integer)
+     */
+    public function authorizationLevel()
+    {
+        if ($this->tabAccess['delete']) {
+            return AdminController::LEVEL_DELETE;
+        } elseif ($this->tabAccess['add']) {
+            return AdminController::LEVEL_ADD;
+        } elseif ($this->tabAccess['edit']) {
+            return AdminController::LEVEL_EDIT;
+        } elseif ($this->tabAccess['view']) {
+            return AdminController::LEVEL_VIEW;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
      * Set the filters used for the list display
      *
      * @since   1.0.0
@@ -830,14 +855,16 @@ class AdminControllerCore extends Controller
     }
 
     /**
-     * @param string $text_delimiter
+     * @param string $textDelimiter
+     *
+     * @return void
      *
      * @throws PrestaShopException
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
-    public function processExport($text_delimiter = '"')
+    public function processExport($textDelimiter = '"')
     {
         // clean buffer
         if (ob_get_level() && ob_get_length() > 0) {
@@ -892,7 +919,7 @@ class AdminControllerCore extends Controller
                 'export_precontent' => "",
                 'export_headers'    => $headers,
                 'export_content'    => $content,
-                'text_delimiter'    => $text_delimiter,
+                'text_delimiter'    => $textDelimiter,
             ]
         );
 
@@ -1211,7 +1238,7 @@ class AdminControllerCore extends Controller
     /**
      * Call the right method for creating or updating object
      *
-     * @return ObjectModel|false|void
+     * @return bool
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
@@ -1230,7 +1257,7 @@ class AdminControllerCore extends Controller
     /**
      * Object update
      *
-     * @return ObjectModel|false|void
+     * @return ObjectModel|false
      * @throws PrestaShopException
      *
      * @since   1.0.0
@@ -1276,10 +1303,9 @@ class AdminControllerCore extends Controller
                     }
 
                     if (!isset($result) || !$result) {
-                        $this->errors[] = Tools::displayError('An error occurred while updating an object.').
-                            ' <b>'.$this->table.'</b> ('.Db::getInstance()->getMsgError().')';
+                        $this->errors[] = Tools::displayError('An error occurred while updating an object.').' <b>'.$this->table.'</b> ('.Db::getInstance()->getMsgError().')';
                     } elseif ($this->postImage($object->id) && !count($this->errors) && $this->_redirect) {
-                        $parent_id = (int) Tools::getValue('id_parent', 1);
+                        $parentId = (int) Tools::getValue('id_parent', 1);
                         // Specific back redirect
                         if ($back = Tools::getValue('back')) {
                             $this->redirect_after = urldecode($back).'&conf=4';
@@ -1296,18 +1322,17 @@ class AdminControllerCore extends Controller
                         }
                         // Save and back to parent
                         if (Tools::isSubmit('submitAdd'.$this->table.'AndBackToParent')) {
-                            $this->redirect_after = self::$currentIndex.'&'.$this->identifier.'='.$parent_id.'&conf=4&token='.$this->token;
+                            $this->redirect_after = self::$currentIndex.'&'.$this->identifier.'='.$parentId.'&conf=4&token='.$this->token;
                         }
 
                         // Default behavior (save and back)
                         if (empty($this->redirect_after) && $this->redirect_after !== false) {
-                            $this->redirect_after = self::$currentIndex.($parent_id ? '&'.$this->identifier.'='.$object->id : '').'&conf=4&token='.$this->token;
+                            $this->redirect_after = self::$currentIndex.($parentId ? '&'.$this->identifier.'='.$object->id : '').'&conf=4&token='.$this->token;
                         }
                     }
                     Logger::addLog(sprintf($this->l('%s modification', 'AdminTab', false, false), $this->className), 1, null, $this->className, (int) $object->id, true, (int) $this->context->employee->id);
                 } else {
-                    $this->errors[] = Tools::displayError('An error occurred while updating an object.').
-                        ' <b>'.$this->table.'</b> '.Tools::displayError('(cannot load object)');
+                    $this->errors[] = Tools::displayError('An error occurred while updating an object.').' <b>'.$this->table.'</b> '.Tools::displayError('(cannot load object)');
                 }
             }
         }
@@ -1323,7 +1348,7 @@ class AdminControllerCore extends Controller
             return $object;
         }
 
-        return;
+        return false;
     }
 
     /**
@@ -2365,6 +2390,8 @@ class AdminControllerCore extends Controller
 
     /**
      * Assign smarty variables for all default views, list and form, then call other init functions
+     *
+     * @return void
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version

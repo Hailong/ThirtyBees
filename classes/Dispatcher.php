@@ -437,8 +437,8 @@ class DispatcherCore
             /* Load routes from meta table */
             $sql = 'SELECT m.page, ml.url_rewrite, ml.id_lang
 					FROM `'._DB_PREFIX_.'meta` m
-					LEFT JOIN `'._DB_PREFIX_.'meta_lang` ml
-					ON (m.id_meta = ml.id_meta'.Shop::addSqlRestrictionOnLang('ml', $idShop).')
+					LEFT JOIN `'._DB_PREFIX_.'meta_lang` ml ON (m.id_meta = ml.id_meta'.Shop::addSqlRestrictionOnLang('ml', $idShop).')
+					INNER JOIN `'._DB_PREFIX_.'lang` l ON (l.id_lang = ml.id_lang AND l.`active` = 1)
 					ORDER BY LENGTH(ml.url_rewrite) DESC';
             if ($results = Db::getInstance()->executeS($sql)) {
                 foreach ($results as $row) {
@@ -725,16 +725,19 @@ class DispatcherCore
                                     break 2;
                                 case UrlRewrite::ENTITY_CMS_CATEGORY:
                                     $_GET['id_cms_category'] = (int) $entity[0]['id_entity'];
-                                    $controller = 'cms_category';
+                                    $controller = 'cms';
                                     break 2;
                                 case UrlRewrite::ENTITY_PAGE:
                                     $meta = new Meta($entity[0]['id_entity']);
-//                                    ddd($entity[0]['id_entity']);
                                     $controller = $meta->page;
                                     break 2;
                             }
                         }
-                        if (preg_match($route['regexp'], $uri, $m) && !in_array($route['controller'], ['product', 'category', 'supplier', 'manufacturer', 'cms', 'cms_category'])) {
+                        if (preg_match($route['regexp'], $uri, $m)
+                            &&
+                            (!in_array($route['controller'], ['product', 'category', 'supplier', 'manufacturer', 'cms', 'cms_category'])
+                            || isset($route['params']['fc']) && isset($route['params']['module']))
+                        ) {
                             foreach ($m as $k => $v) {
                                 // Skip the basic entities
                                 // We might have us an external module page here, so just set whatever we can
@@ -1077,7 +1080,7 @@ class DispatcherCore
      *
      * @since 1.0.0
      */
-    protected function createRegExp($rule, array $keywords)
+    protected function createRegExp($rule, $keywords)
     {
         $regexp = preg_quote($rule, '#');
         if (!empty($keywords)) {

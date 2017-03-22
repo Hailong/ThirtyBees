@@ -32,6 +32,8 @@
  * This class require Redis server to be installed
  *
  * @since 1.0.0
+ *
+ * @deprecated 1.1.0 Will be converted into a caching module following the PSR-6 standard: http://www.php-fig.org/psr/psr-6/
  */
 class CacheRedisCore extends CacheCore
 {
@@ -128,10 +130,13 @@ class CacheRedisCore extends CacheCore
                     } else {
                         try {
                             $this->redis->select($this->_servers[0]['db']);
-                            $ping = array_values($this->redis->ping());
-                            if (!empty($ping) && $ping[0] === '+PONG') {
-                                // We're connected if a connection without +AUTH receives a +PONG
-                                $this->is_connected = true;
+                            $ping = $this->redis->ping();
+                            if (is_array($ping)) {
+                                $ping = array_values($ping);
+                                if (!empty($ping) && $ping[0] === '+PONG') {
+                                    // We're connected if a connection without +AUTH receives a +PONG
+                                    $this->is_connected = true;
+                                }
                             }
                         } catch (Exception $e) {
                             $this->is_connected = false;

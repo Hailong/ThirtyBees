@@ -3,7 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/thirtybees/ThirtyBees/badge.svg?branch=master)](https://coveralls.io/github/thirtybees/ThirtyBees?branch=master)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/ThirtyBees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/ThirtyBees/?branch=master)  
 
-thirty bees is an opensource fork of PrestaShop 1.6 . Our aim with this fork is to provide a feature set that merchants. We are rewriting a lot of the core modules and cleaning up the legacy code. We aim to provide a stable, feature rich ecommerce platform to grow businesses.  
+thirty bees is an open-source fork of PrestaShop 1.6. Our aim with this fork is to provide a feature set that merchants need. We are rewriting a lot of the core modules and cleaning up the legacy code. We aim to provide a stable, feature-rich e-commerce platform to grow businesses.  
 
 ![thirty bees screenshot](https://cloud.githubusercontent.com/assets/6775736/22063185/c5ef8e3c-dd7d-11e6-923c-4b62ac404c86.png)
 
@@ -40,6 +40,9 @@ Native modules will be refactored to remove legacy code. Code that supports prev
 * Stripe (Credit cards, Apple Pay, AliPay, Bitcoins)
 * Thirty Bees blog module
 
+### Updated roadmap
+You can find the latest version of the roadmap here: https://thirtybees.com/roadmap
+
 ## Requirements
 **General server requirements:**
 
@@ -55,10 +58,10 @@ Native modules will be refactored to remove legacy code. Code that supports prev
     - json
     - zip
     - mysql (PDO only)
+    - mbstring
   - Recommended:
     - imap
     - curl
-    - mbstring
     - opcache
     - apcu/redis/memcache(d)
 
@@ -75,33 +78,34 @@ $ composer install
 ```
 - Then install the software as usual, using either a web browser (https://example.com/install-dev) 
 - Or install via command line 
-**``` php /install-dev/index_cli.php```**
-	- Arguments available:
-<pre>--step	all / database,fixtures,theme,modules,addons_modules	(Default: all)
---language	language iso code	(Default: en)
---allLanguages	install all available languages	(Default: 0)
---timezone		(Default: Europe/Paris)
---base_uri		(Default: /)
---domain		(Default: localhost)
---db_server		(Default: localhost)
---db_user		(Default: root)
---db_password		(Default: )
---db_name		(Default: thirtybees)
---db_clear	Drop existing tables	(Default: 1)
---db_create	Create the database if not exist	(Default: 0)
---prefix		(Default: tb_)
---engine	InnoDB	(Default: InnoDB)
---name		(Default: thirty bees)
---activity		(Default: 0)
---country		(Default: fr)
---firstname		(Default: John)
---lastname		(Default: Doe)
---password		(Default: 0123456789)
---email		(Default: pub@thirtybees.com)
---license	show thirty bees license	(Default: 0)
---newsletter	get news from thirty bees	(Default: 1)
---send_email	send an email to the administrator after installation	(Default: 1)</pre>
-
+``` php /install-dev/index_cli.php```
+    - Arguments available:
+```
+--step          all / database,fixtures,theme,modules,addons_modules    (Default: all)
+--language      Language iso code                                       (Default: en)
+--all_languages Install all available languages                         (Default: 0)
+--timezone                                                              (Default: Europe/Paris)
+--base_uri                                                              (Default: /)
+--domain                                                                (Default: localhost)
+--db_server                                                             (Default: localhost)
+--db_user                                                               (Default: root)
+--db_password                                                           (Default: )
+--db_name                                                               (Default: thirtybees)
+--db_clear      Drop existing tables                                    (Default: 1)
+--db_create     Create the database if not exist                        (Default: 0)
+--prefix                                                                (Default: tb_)
+--engine        InnoDB                                                  (Default: InnoDB)
+--name                                                                  (Default: thirty bees)
+--activity                                                              (Default: 0)
+--country                                                               (Default: fr)
+--firstname                                                             (Default: John)
+--lastname                                                              (Default: Doe)
+--password                                                              (Default: 0123456789)
+--email                                                                 (Default: pub@thirtybees.com)
+--license       Show thirty bees license                                (Default: 0)
+--newsletter    Get news from thirty bees                               (Default: 1)
+--send_email    Send an email to the administrator after installation   (Default: 1)
+```
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)

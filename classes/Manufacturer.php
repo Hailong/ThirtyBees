@@ -425,7 +425,7 @@ class ManufacturerCore extends ObjectModel
     /**
      * Specify if a manufacturer already in base
      *
-     * @param $idManufacturer Manufacturer id
+     * @param int $idManufacturer Manufacturer id
      *
      * @return bool
      *
@@ -508,6 +508,8 @@ class ManufacturerCore extends ObjectModel
 
             return $this->deleteImage();
         }
+
+        return false;
     }
 
     /**
@@ -622,21 +624,39 @@ class ManufacturerCore extends ObjectModel
         return ($result1 && $result2);
     }
 
+    /**
+     * @param bool $autoDate
+     * @param bool $nullValues
+     *
+     * @return bool Indicates whether saving succeeded
+     */
     public function add($autoDate = true, $nullValues = false)
     {
-        parent::add($autoDate, $nullValues);
+        if (parent::add($autoDate, $nullValues)) {
+            UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
 
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
+            return true;
+        }
+
+        return false;
     }
 
+    /**
+     * @param null $nullValues
+     *
+     * @return bool Indicates whether updating succeeded
+     */
     public function update($nullValues = null)
     {
         if ('TB_PAGE_CACHE_ENABLED') {
             PageCache::invalidateEntity('manufacturer', $this->id);
         }
 
+        $return = parent::update($nullValues);
+
         UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
 
-        parent::update($nullValues);
+        return $return;
+
     }
 }

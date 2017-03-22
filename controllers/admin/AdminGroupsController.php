@@ -621,9 +621,9 @@ class AdminGroupsControllerCore extends AdminController
 
         $tpl->assign(
             [
-            'href' => $href,
-            'action' => self::$cache_lang['Edit'],
-            'id' => $id
+                'href' => $href,
+                'action' => self::$cache_lang['Edit'],
+                'id' => $id
             ]
         );
 

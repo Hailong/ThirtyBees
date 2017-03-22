@@ -199,6 +199,63 @@ abstract class ControllerCore
     }
 
     /**
+     * thirty bees' new coding style dictates that camelCase should be used
+     * rather than snake_case
+     * These magic methods provide backwards compatibility for modules/themes/whatevers
+     * that still access properties via their snake_case names
+     *
+     * @param string $property Property name
+     *
+     * @return mixed
+     *
+     * @since 1.0.1
+     */
+    public function &__get($property)
+    {
+        // Property to camelCase for backwards compatibility
+        $camelCaseProperty = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $property))));
+        if (property_exists($this, $camelCaseProperty)) {
+            return $this->$camelCaseProperty;
+        }
+
+        return $this->$property;
+    }
+
+    /**
+     * thirty bees' new coding style dictates that camelCase should be used
+     * rather than snake_case
+     * These magic methods provide backwards compatibility for modules/themes/whatevers
+     * that still access properties via their snake_case names
+     *
+     * @param string $property
+     * @param mixed  $value
+     *
+     * @return void
+     *
+     * @since 1.0.1
+     */
+    public function __set($property, $value)
+    {
+        $blacklist = [
+            '_select',
+            '_join',
+            '_where',
+            '_group',
+            '_having',
+            '_conf',
+            '_lang',
+        ];
+
+        // Property to camelCase for backwards compatibility
+        $snakeCaseProperty = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $property))));
+        if (!in_array($property, $blacklist) && property_exists($this, $snakeCaseProperty)) {
+            $this->$snakeCaseProperty = $value;
+        } else {
+            $this->$property = $value;
+        }
+    }
+
+    /**
      * Starts the controller process (this method should not be overridden!)
      *
      * @since 1.0.0
@@ -464,7 +521,7 @@ abstract class ControllerCore
     /**
      * Adds a new stylesheet(s) to the page header.
      *
-     * @param string|array $cssUri Path to CSS file, or list of css files like this : array(array(uri => media_type), ...)
+     * @param string|array $cssUri       Path to CSS file, or list of css files like this : array(array(uri => media_type), ...)
      * @param string       $cssMediaType
      * @param int|null     $offset
      * @param bool         $checkPath
@@ -491,7 +548,7 @@ abstract class ControllerCore
                 if ($checkPath) {
                     $cssPath = Media::getCSSPath($media, $cssMediaType);
                 } else {
-                    $cssPath = [$media => $cssMediaType];
+                    $cssPath = [$media => is_string($cssMediaType) ? $cssMediaType : 'all'];
                 }
             }
 

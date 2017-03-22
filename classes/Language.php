@@ -398,10 +398,10 @@ class LanguageCore extends ObjectModel
     }
 
     /**
-     * @param      $iso
-     * @param null $version
-     * @param null $params
-     * @param bool $install
+     * @param string      $iso
+     * @param string|null $version
+     * @param array|null  $params
+     * @param bool        $install
      *
      * @return array|bool
      *
@@ -410,7 +410,90 @@ class LanguageCore extends ObjectModel
      */
     public static function downloadAndInstallLanguagePack($iso, $version = null, $params = null, $install = true)
     {
-        return false;
+        if (!Validate::isLanguageIsoCode((string) $iso)) {
+            return false;
+        }
+        // TODO: filter beta RC versions etc.
+        if ($version == null) {
+            $version = _TB_VERSION_;
+        }
+
+        $langPack = false;
+        $errors = array();
+        $file = _PS_TRANSLATIONS_DIR_.(string) $iso.'.gzip';
+        $guzzle = new GuzzleHttp\Client([
+            'base_uri' => "https://translations.thirtybees.com/packs/{$version}/",
+            'timeout'  => 20,
+            'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+        ]);
+
+        try {
+            $langPackLink = (string) $guzzle->get("{$iso}.json")->getBody();
+        } catch (Exception $e) {
+            $langPackLink = false;
+        }
+
+        if (!$langPackLink) {
+            $errors[] = Tools::displayError('Archive cannot be downloaded from thirtybees.com.');
+        } elseif (!$langPack = json_decode($langPackLink)) {
+            $errors[] = Tools::displayError('Error occurred when language was checked according to your thirty bees version.');
+        } elseif (isset($langPack->name)) {
+            try {
+                $guzzle->get("{$iso}.gzip", ['sink' => $file]);
+                $success = true;
+            } catch (Exception $e) {
+                $success = false;
+            }
+
+            if ($success && !@file_exists($file)) {
+                if (!is_writable($file)) {
+                    $errors[] = Tools::displayError('Server does not have permissions for writing.').' ('.$file.')';
+                }
+            }
+        }
+        if (!file_exists($file)) {
+            $errors[] = Tools::displayError('No language pack is available for your version.');
+        } elseif ($install) {
+            $gz = new Archive_Tar($file, true);
+            $fileList = AdminTranslationsController::filterTranslationFiles(Language::getLanguagePackListContent((string) $iso, $gz));
+            $filePaths = AdminTranslationsController::filesListToPaths($fileList);
+            $i = 0;
+            $tmpArray = array();
+            foreach ($filePaths as $filePath) {
+                $path = dirname($filePath);
+                if (is_dir(_PS_TRANSLATIONS_DIR_.'../'.$path) && !is_writable(_PS_TRANSLATIONS_DIR_.'../'.$path) && !in_array($path, $tmpArray)) {
+                    $errors[] = (!$i++? Tools::displayError('The archive cannot be extracted.').' ' : '').Tools::displayError('The server does not have permissions for writing.').' '.sprintf(Tools::displayError('Please check rights for %s'), $path);
+                    $tmpArray[] = $path;
+                }
+            }
+            if (defined('_PS_HOST_MODE_')) {
+                $mailsFiles = array();
+                $otherFiles = array();
+                foreach ($fileList as $key => $data) {
+                    if (substr($data['filename'], 0, 5) == 'mails') {
+                        $mailsFiles[] = $data;
+                    } else {
+                        $otherFiles[] = $data;
+                    }
+                }
+                $fileList = $otherFiles;
+            }
+            if (!$gz->extractList(AdminTranslationsController::filesListToPaths($fileList), _PS_TRANSLATIONS_DIR_.'../')) {
+                $errors[] = sprintf(Tools::displayError('Cannot decompress the translation file for the following language: %s'), (string) $iso);
+            }
+            // Clear smarty modules cache
+            Tools::clearCache();
+            if (!self::checkAndAddLanguage((string) $iso, $langPack, false, $params)) {
+                $errors[] = sprintf(Tools::displayError('An error occurred while creating the language: %s'), (string) $iso);
+            } else {
+                // Reset cache
+                Language::loadLanguages();
+                AdminTranslationsController::checkAndAddMailsFiles((string) $iso, $fileList);
+                AdminTranslationsController::addNewTabs((string) $iso, $fileList);
+            }
+        }
+
+        return count($errors) ? $errors : true;
     }
 
     public static function getLanguagePackListContent($iso, $tar)
@@ -452,6 +535,33 @@ class LanguageCore extends ObjectModel
         $lang->iso_code = Tools::strtolower($isoCode);
         $lang->language_code = $isoCode; // Rewritten afterwards if the language code is available
         $lang->active = true;
+
+        // If the language pack has not been provided, retrieve it from translations.thirtybees.com
+        if (!$langPack) {
+            // TODO: filter rc beta etc.
+            $version = _TB_VERSION_;
+            $guzzle = new GuzzleHttp\Client([
+                'base_uri' => "https://translations.thirtybees.com/packs/{$version}/",
+                'timeout'  => 20,
+                'verify'   => _PS_TOOL_DIR_.'cacert.pem',
+            ]);
+
+            try {
+                $lowerIso = Tools::strtolower($isoCode);
+                $langPack = json_decode((string) $guzzle->get("{$lowerIso}.json")->getBody());
+            } catch (Exception $e) {
+                $langPack = false;
+            }
+        }
+
+        // If a language pack has been found or provided, prefill the language object with the value
+        if ($langPack) {
+            foreach (get_object_vars($langPack) as $key => $value) {
+                if ($key != 'iso_code' && isset(Language::$definition['fields'][$key])) {
+                    $lang->$key = $value;
+                }
+            }
+        }
 
         // Use the values given in parameters to override the data retrieved automatically
         if ($paramsLang !== null && is_array($paramsLang)) {
