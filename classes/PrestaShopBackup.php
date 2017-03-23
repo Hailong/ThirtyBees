@@ -45,8 +45,9 @@ class PrestaShopBackupCore
     public $error;
     /** @var string custom backup directory. */
     public $customBackupDir = null;
-
+    /** @var bool|string $psBackupAll */
     public $psBackupAll = true;
+    /** @var bool|string $psBackupDropTable */
     public $psBackupDropTable = true;
     // @codingStandardsIgnoreEnd
 
@@ -82,11 +83,12 @@ class PrestaShopBackupCore
      */
     public function getRealBackupPath($filename = null)
     {
-        $backupDir = PrestaShopBackup::getBackupPath($filename);
+        $backupDir = self::getBackupPath($filename);
         if (!empty($this->customBackupDir)) {
             $backupDir = str_replace(
-                (defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ : _PS_ADMIN_DIR_).self::$backupDir,
-                (defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ : _PS_ADMIN_DIR_).$this->customBackupDir, $backupDir
+                _PS_ADMIN_DIR_.self::$backupDir,
+                _PS_ADMIN_DIR_.$this->customBackupDir,
+                $backupDir
             );
 
             if (strrpos($backupDir, DIRECTORY_SEPARATOR)) {
@@ -109,7 +111,7 @@ class PrestaShopBackupCore
      */
     public static function getBackupPath($filename = '')
     {
-        $backupdir = realpath((defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ : _PS_ADMIN_DIR_).self::$backupDir);
+        $backupdir = realpath(_PS_ADMIN_DIR_.self::$backupDir);
 
         if ($backupdir === false) {
             die(Tools::displayError('"Backup" directory does not exist.'));
@@ -141,7 +143,7 @@ class PrestaShopBackupCore
      */
     public static function backupExist($filename)
     {
-        $backupdir = realpath((defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ : _PS_ADMIN_DIR_).self::$backupDir);
+        $backupdir = realpath(_PS_ADMIN_DIR_.self::$backupDir);
 
         if ($backupdir === false) {
             die(Tools::displayError('"Backup" directory does not exist.'));
@@ -165,7 +167,7 @@ class PrestaShopBackupCore
     public function setCustomBackupPath($dir)
     {
         $customDir = DIRECTORY_SEPARATOR.trim($dir, '/').DIRECTORY_SEPARATOR;
-        if (is_dir((defined('_PS_HOST_MODE_') ? _PS_ROOT_DIR_ : _PS_ADMIN_DIR_).$customDir)) {
+        if (is_dir(_PS_ADMIN_DIR_.$customDir)) {
             $this->customBackupDir = $customDir;
         } else {
             return false;
@@ -198,7 +200,7 @@ class PrestaShopBackupCore
     public function deleteSelection($list)
     {
         foreach ($list as $file) {
-            $backup = new PrestaShopBackup($file);
+            $backup = new self($file);
             if (!$backup->delete()) {
                 $this->error = $backup->error;
 
@@ -221,8 +223,11 @@ class PrestaShopBackupCore
     {
         if (!$this->psBackupAll) {
             $ignoreInsertTable = [
-                _DB_PREFIX_.'connections', _DB_PREFIX_.'connections_page', _DB_PREFIX_
-                .'connections_source', _DB_PREFIX_.'guest', _DB_PREFIX_.'statssearch',
+                _DB_PREFIX_.'connections',
+                _DB_PREFIX_.'connections_page',
+                _DB_PREFIX_.'connections_source',
+                _DB_PREFIX_.'guest',
+                _DB_PREFIX_.'statssearch',
             ];
         } else {
             $ignoreInsertTable = [];
