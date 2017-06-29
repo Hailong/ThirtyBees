@@ -299,8 +299,18 @@ class AdminModulesControllerCore extends AdminController
         // Retrieve Modules Preferences
         $modulesPreferences = [];
         $tabModulesPreferences = [];
-        $modulesPreferencesTmp = Db::getInstance()->executeS('SELECT * FROM `'._DB_PREFIX_.'module_preference` WHERE `id_employee` = '.(int) $this->id_employee);
-        $tabModulesPreferencesTmp = Db::getInstance()->executeS('SELECT * FROM `'._DB_PREFIX_.'tab_module_preference` WHERE `id_employee` = '.(int) $this->id_employee);
+        $modulesPreferencesTmp = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new DbQuery())
+            ->select('*')
+            ->from('module_preference')
+            ->where('`id_employee` = '.(int) $this->id_employee)
+        );
+        $tabModulesPreferencesTmp = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new DbQuery())
+            ->select('*')
+            ->from('tab_module_preference')
+            ->where('`id_employee` = '.(int) $this->employee)
+        );
 
         foreach ($tabModulesPreferencesTmp as $i => $j) {
             $tabModulesPreferences[$j['module']][] = $j['id_tab'];
@@ -601,13 +611,28 @@ class AdminModulesControllerCore extends AdminController
             if ($module->interest === '0') {
                 return true;
             }
-        } elseif ((int) Db::getInstance()->getValue('SELECT `id_module_preference` FROM `'._DB_PREFIX_.'module_preference` WHERE `module` = \''.pSQL($module->name).'\' AND `id_employee` = '.(int) $this->id_employee.' AND `interest` = 0') > 0) {
+        } elseif ((int) Db::getInstance()->getValue(
+            (new DbQuery())
+            ->select('`id_module_preference`')
+            ->from('module_preference')
+            ->where('`module` = \''.pSQL($module->name).'\'')
+            ->where('`id_employee` = '.(int) $this->id_employee)
+            ->where('`interest` = 0')
+        ) > 0) {
             return true;
         }
 
         // Filter on favorites
         if (Configuration::get('PS_SHOW_CAT_MODULES_'.(int) $this->id_employee) == 'favorites') {
-            if ((int) Db::getInstance()->getValue('SELECT `id_module_preference` FROM `'._DB_PREFIX_.'module_preference` WHERE `module` = \''.pSQL($module->name).'\' AND `id_employee` = '.(int) $this->id_employee.' AND `favorite` = 1 AND (`interest` = 1 OR `interest` IS NULL)') < 1) {
+            if ((int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+                (new DbQuery())
+                ->select('`id_module_preference`')
+                ->from('module_preference')
+                ->where('`module` = \''.pSQL($module->name).'\'')
+                ->where('`id_employee` = '.(int) $this->id_employee)
+                ->where('`favorite` = 1')
+                ->where('`interest` = 1 OR `interest` IS NULL')
+            ) < 1) {
                 return true;
             }
         } else {
@@ -923,7 +948,13 @@ class AdminModulesControllerCore extends AdminController
         $action = Tools::getValue('action_pref');
         $value = Tools::getValue('value_pref');
         $module = Tools::getValue('module_pref');
-        $idModulePreference = (int) Db::getInstance()->getValue('SELECT `id_module_preference` FROM `'._DB_PREFIX_.'module_preference` WHERE `id_employee` = '.(int) $this->id_employee.' AND `module` = \''.pSQL($module).'\'');
+        $idModulePreference = (int) Db::getInstance()->getValue(
+            (new DbQuery())
+            ->select('`id_module_preference`')
+            ->from('module_preference')
+            ->where('`id_employee` = '.(int) $this->id_employee)
+            ->where('`module` = \''.pSQL($module).'\'')
+        );
         if ($idModulePreference > 0) {
             if ($action == 'i') {
                 $update = ['interest' => ($value == '' ? null : (int) $value)];
@@ -1156,41 +1187,72 @@ class AdminModulesControllerCore extends AdminController
      */
     protected function extractArchive($file, $redirect = true)
     {
-        $zipFolders = [];
+        $oldUmask = @umask(0000);
+
         $tmpFolder = _PS_MODULE_DIR_.md5(time());
 
         $success = false;
         if (substr($file, -4) == '.zip') {
-            if (Tools::ZipExtract($file, $tmpFolder)) {
-                $zipFolders = scandir($tmpFolder);
-                foreach ($zipFolders as $zipFolder) {
-                    if (!in_array($zipFolder, ['.', '..', '.svn', '.git', '__MACOSX'])) {
-                        if (file_exists(_PS_MODULE_DIR_.$zipFolder) && !ConfigurationTest::testDir(_PS_MODULE_DIR_.$zipFolder)) {
-                            $this->errors[] = Tools::displayError('There was an error while extracting the module. The destination folder is not writable.');
+            $zip = new ZipArchive();
+            $zip->open($file);
+            $dirs = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $filePath = explode(DIRECTORY_SEPARATOR, $zip->getNameIndex($i));
 
-                            return false;
-                        }
+                if (!empty($filePath)) {
+                    $dirs[] = $filePath[0];
+                }
+            }
+            $zipFolders = array_unique($dirs);
+            foreach ($zipFolders as $zipFolder) {
+                if (!in_array($zipFolder, ['.', '..', '.svn', '.git', '__MACOSX'])) {
+                    if (file_exists(_PS_MODULE_DIR_.$zipFolder) && !ConfigurationTest::testDir(_PS_MODULE_DIR_.$zipFolder, true, $report, true)) {
+                        $this->errors[] = $this->l('There was an error while extracting the module.').' '.$report;
+
+                        return false;
                     }
                 }
-                if (Tools::ZipExtract($file, _PS_MODULE_DIR_)) {
-                    $success = true;
+            }
+
+            // Set permissions to the default 0777
+            if (Tools::ZipExtract($file, _PS_MODULE_DIR_)) {
+                $success = true;
+
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    @chmod(_PS_MODULE_DIR_.$zip->getNameIndex($i), 0777);
+                }
+                foreach ($zipFolders as $zipFolder) {
+                    @chmod(_PS_MODULE_DIR_.$zipFolder, 0777);
                 }
             }
         } else {
             $archive = new Archive_Tar($file);
-            if ($archive->extract($tmpFolder)) {
-                $zipFolders = scandir($tmpFolder);
-                foreach ($zipFolders as $zipFolder) {
-                    if (!in_array($zipFolder, ['.', '..', '.svn', '.git', '__MACOSX'])) {
-                        if (file_exists(_PS_MODULE_DIR_.$zipFolder) && !ConfigurationTest::testDir(_PS_MODULE_DIR_.$zipFolder)) {
-                            $this->errors[] = Tools::displayError('There was an error while extracting the module. The destination folder is not writable.');
+            $dirs = $archive->listContent();
+            $zipFolders = [];
+            for ($i = 0; $i < count($dirs); $i++) {
+                $filePath = explode(DIRECTORY_SEPARATOR, $dirs[$i]);
+                if (!empty($filePath)) {
+                    $zipFolders[] = $filePath[0];
+                }
+            }
+            $zipFolders = array_unique($dirs);
+            foreach ($zipFolders as $zipFolder) {
+                if (!in_array($zipFolder, ['.', '..', '.svn', '.git', '__MACOSX'])) {
+                    if (file_exists(_PS_MODULE_DIR_.$zipFolder) && !ConfigurationTest::testDir(_PS_MODULE_DIR_.$zipFolder, true, $report, true)) {
+                        $this->errors[] = $this->l('There was an error while extracting the module.').' '.$report;
 
-                            return false;
-                        }
+                        return false;
                     }
                 }
-                if ($archive->extract(_PS_MODULE_DIR_)) {
-                    $success = true;
+            }
+            if ($archive->extract(_PS_MODULE_DIR_)) {
+                $success = true;
+
+                for ($i = 0; $i < count($dirs); $i++) {
+                    @chmod(_PS_MODULE_DIR_.$dirs[$i], 0777);
+                }
+                foreach ($zipFolders as $zipFolder) {
+                    @chmod(_PS_MODULE_DIR_.$zipFolder, 0777);
                 }
             }
         }
@@ -1209,6 +1271,8 @@ class AdminModulesControllerCore extends AdminController
 
         @unlink($file);
         $this->recursiveDeleteOnDisk($tmpFolder);
+
+        @umask($oldUmask);
 
         if ($success && $redirect && isset($folder)) {
             Tools::redirectAdmin(static::$currentIndex.'&conf=8&anchor='.ucfirst($folder).'&token='.$this->token);

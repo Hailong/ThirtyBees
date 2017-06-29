@@ -25,7 +25,7 @@
 <div id="login-panel">
 	<div id="login-header">
 		<h1 class="text-center">
-			<img id="logo" src="{$img_dir}thirtybees@2x.png" width="155px" height="39px" alt="thirty bees" />
+			<img id="logo" src="{$img_dir}thirty-bees@2x.png" width="155px" height="39px" alt="PrestaShop" />
 		</h1>
 		<div class="text-center">{$ps_version}</div>
 		<div id="error" class="hide alert alert-danger">
@@ -76,7 +76,7 @@
 					<div class="form-group">
 						<div id="remind-me" class="checkbox pull-left">
 							<label for="stay_logged_in">
-								<input name="stay_logged_in" type="checkbox" id="stay_logged_in" value="1"	tabindex="3"/>
+								<input name="stay_logged_in" type="checkbox" id="stay_logged_in" value="1"	tabindex="3" checked="checked"/>
 								{l s='Stay logged in'}
 							</label>
 						</div>
@@ -139,7 +139,7 @@
 			</a>
 		</p>
 		<p class="text-center">
-			<a class="link-social link-twitter _blank" href="https://twitter.com/thirtybees" title="Twitter">
+			<a class="link-social link-twitter _blank" href="https://twitter.com/thethirtybees" title="Twitter">
 				<i class="icon-twitter"></i>
 			</a>
 			<a class="link-social link-facebook _blank" href="https://www.facebook.com/thirtybees" title="Facebook">
@@ -150,6 +150,9 @@
 			</a>
 			<a class="link-social link-google _blank" href="https://plus.google.com/+thirtybees/" title="Google">
 				<i class="icon-google-plus"></i>
+			</a>
+			<a class="link-social link-reddit _blank" href="https://www.reddit.com/r/thirtybees/" title="Reddit">
+				<i class="icon-reddit"></i>
 			</a>
 		</p>
 	</div>

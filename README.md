@@ -1,6 +1,7 @@
 # thirty bees 
 [![Build Status](https://travis-ci.org/thirtybees/thirtybees.svg?branch=master)](https://travis-ci.org/thirtybees/thirtybees)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/thirtybees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/thirtybees/?branch=master)  
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/thirtybees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/thirtybees/?branch=master)
+[![Gitter](https://img.shields.io/gitter/room/thirtybees/General.svg)](https://gitter.im/thirtybees/General)
 
 thirty bees is an open-source fork of PrestaShop 1.6. Our aim with this fork is to provide a feature set that merchants need. We are rewriting a lot of the core modules and cleaning up the legacy code. We aim to provide a stable, feature-rich e-commerce platform to grow businesses.  
 
@@ -13,7 +14,7 @@ thirty bees is an open-source fork of PrestaShop 1.6. Our aim with this fork is 
 
 With version 1.0.x we are striving to fix as many bugs as possible, while maintaining compatibility with existing themes and modules. We want to provide the stablest platform for current users to migrate into. 
 
-**New Features being added into v1.0.0 of thirty bees:**
+**New Features being added into v1.0.x of thirty bees:**
 
 * Ability to add CSS from the back office
 * Ability to add JavaScript snippets from the back office
@@ -28,7 +29,7 @@ With version 1.0.x we are striving to fix as many bugs as possible, while mainta
 
 Native modules will be refactored to remove legacy code. Code that supports previous PrestaShop versions will be removed and refactored to support PHP 5.5 - PHP 7.1.
 
- **Rewritten modules:**
+**Rewritten modules:**
 
 * PayPal will totally be rewritten
 * Authorize.net will be refactored
@@ -38,6 +39,7 @@ Native modules will be refactored to remove legacy code. Code that supports prev
 * MailChimp (including e-commerce features)
 * Stripe (Credit cards, Apple Pay, AliPay, Bitcoins)
 * thirty bees blog module
+* tawkto
 
 ### Updated roadmap
 You can find the latest version of the roadmap here: https://thirtybees.com/roadmap
@@ -65,10 +67,10 @@ You can find the latest version of the roadmap here: https://thirtybees.com/road
     - apcu/redis/memcache(d)
 
 ## Installation
-These are the instructions to install via git:
-- Recursively clone the repository:
+You can install the master or follow a [release package](https://github.com/thirtybees/thirtybees/releases) 
+- Recursively clone the repository and choose tag release version number from the -b parameter:
 ```shell
-$ git clone https://github.com/thirtybees/thirtybees.git --recursive
+$ git clone https://github.com/thirtybees/thirtybees.git --recursive -b #.##
 ```
 - Then cd into the `thirtybees` folder
 - Run composer to install the dependencies:

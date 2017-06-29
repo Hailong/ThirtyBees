@@ -767,6 +767,7 @@ class ToolsCore
      * @param object|array $tbCurrency Current (thirty bees) Currency
      * @param bool         $noUtf8
      * @param Context      $context
+     * @param null|bool    $auto
      *
      * @return string Price correctly formatted (sign, decimal separator...)
      * if you modify this function, don't forget to modify the Javascript function formatCurrency (in tools.js)
@@ -774,9 +775,10 @@ class ToolsCore
      * @since   1.0.0
      * @version 1.0.0 Initial version
      *
-     * @todo    : move to intl
+     * @since 1.0.2 Not every merchant likes to have currencies formatted automatically.
+     *        For them, the auto option is now available.
      */
-    public static function displayPrice($price, $tbCurrency = null, $noUtf8 = false, Context $context = null)
+    public static function displayPrice($price, $tbCurrency = null, $noUtf8 = false, Context $context = null, $auto = null)
     {
         if (!is_numeric($price)) {
             return $price;
@@ -794,14 +796,70 @@ class ToolsCore
             $currencyIso = $tbCurrency['iso_code'];
             $currencyDecimals = (int) $tbCurrency['decimals'] * _PS_PRICE_DISPLAY_PRECISION_;
             $currencyArray = $tbCurrency;
-
             $tbCurrency = new Currency();
             $tbCurrency->hydrate($currencyArray);
         } elseif (is_object($tbCurrency)) {
             $currencyIso = $tbCurrency->iso_code;
             $currencyDecimals = (int) $tbCurrency->decimals * _PS_PRICE_DISPLAY_PRECISION_;
         } else {
-            return false;
+            return '';
+        }
+
+        if ($auto === null) {
+            $auto = $tbCurrency->getMode();
+        }
+
+        if (!$auto) {
+            $cChar = $tbCurrency->sign;
+            $cFormat = $tbCurrency->format;
+            $cDecimals = (int) $tbCurrency->decimals * _PS_PRICE_DISPLAY_PRECISION_;
+            $cBlank = $tbCurrency->blank;
+            $blank = ($cBlank ? ' ' : '');
+            $ret = 0;
+            if (($isNegative = ($price < 0))) {
+                $price *= -1;
+            }
+            $price = Tools::ps_round($price, $cDecimals);
+
+            /*
+            * If the language is RTL and the selected currency format contains spaces as thousands separator
+            * then the number will be printed in reverse since the space is interpreted as separating words.
+            * To avoid this we replace the currency format containing a space with the one containing a comma (,) as thousand
+            * separator when the language is RTL.
+            */
+            if (($cFormat == 2) && ($context->language->is_rtl == 1)) {
+                $cFormat = 4;
+            }
+            switch ($cFormat) {
+                /* X 0,000.00 */
+                case 1:
+                    $ret = $cChar.$blank.number_format($price, $cDecimals, '.', ',');
+                    break;
+                /* 0 000,00 X*/
+                case 2:
+                    $ret = number_format($price, $cDecimals, ',', ' ').$blank.$cChar;
+                    break;
+                /* X 0.000,00 */
+                case 3:
+                    $ret = $cChar.$blank.number_format($price, $cDecimals, ',', '.');
+                    break;
+                /* 0,000.00 X */
+                case 4:
+                    $ret = number_format($price, $cDecimals, '.', ',').$blank.$cChar;
+                    break;
+                /* X 0'000.00  Added for the switzerland currency */
+                case 5:
+                    $ret = number_format($price, $cDecimals, '.', "'").$blank.$cChar;
+                    break;
+            }
+            if ($isNegative) {
+                $ret = '-'.$ret;
+            }
+            if ($noUtf8) {
+                return str_replace('€', chr(128), $ret);
+            }
+
+            return $ret;
         }
 
         $price = Tools::ps_round($price, $currencyDecimals);
@@ -1957,7 +2015,7 @@ class ToolsCore
             /* c  */
             '/[\x{00E7}\x{0107}\x{0109}\x{010D}\x{0446}]/u',
             /* d  */
-            '/[\x{010F}\x{0111}\x{0434}\x{0110}]/u',
+            '/[\x{010F}\x{0111}\x{0434}\x{0110}\x{00F0}]/u',
             /* e  */
             '/[\x{00E8}\x{00E9}\x{00EA}\x{00EB}\x{0113}\x{0115}\x{0117}\x{0119}\x{011B}\x{0435}\x{044D}\x{00C8}-\x{00CA}\x{1EB8}-\x{1EC7}]/u',
             /* f  */
@@ -2033,7 +2091,7 @@ class ToolsCore
             /* C  */
             '/[\x{00C7}\x{0106}\x{0108}\x{010A}\x{010C}\x{0426}]/u',
             /* D  */
-            '/[\x{010E}\x{0110}\x{0414}]/u',
+            '/[\x{010E}\x{0110}\x{0414}\x{00D0}]/u',
             /* E  */
             '/[\x{00C8}\x{00C9}\x{00CA}\x{00CB}\x{0112}\x{0114}\x{0116}\x{0118}\x{011A}\x{0415}\x{042D}]/u',
             /* F  */
@@ -2566,7 +2624,7 @@ class ToolsCore
      */
     public static function file_exists_no_cache($filename)
     {
-        clearstatcache();
+        clearstatcache(true, $filename);
 
         return file_exists($filename);
     }
@@ -3222,10 +3280,11 @@ class ToolsCore
         fwrite($write_fd, "AddType application/vnd.ms-fontobject .eot\n");
         fwrite($write_fd, "AddType font/ttf .ttf\n");
         fwrite($write_fd, "AddType font/otf .otf\n");
-        fwrite($write_fd, "AddType application/x-font-woff .woff\n");
+        fwrite($write_fd, "AddType application/font-woff .woff\n");
+        fwrite($write_fd, "AddType application/font-woff2 .woff2\n");
         fwrite(
             $write_fd, "<IfModule mod_headers.c>
-	<FilesMatch \"\.(ttf|ttc|otf|eot|woff|svg)$\">
+	<FilesMatch \"\.(ttf|ttc|otf|eot|woff|woff2|svg)$\">
 		Header add Access-Control-Allow-Origin \"*\"
 	</FilesMatch>
 </IfModule>\n\n"
@@ -3247,6 +3306,7 @@ class ToolsCore
 	ExpiresByType image/vnd.microsoft.icon \"access plus 1 year\"
 	ExpiresByType application/font-woff \"access plus 1 year\"
 	ExpiresByType application/x-font-woff \"access plus 1 year\"
+	ExpiresByType font/woff2 \"access plus 1 year\"
 	ExpiresByType application/vnd.ms-fontobject \"access plus 1 year\"
 	ExpiresByType font/opentype \"access plus 1 year\"
 	ExpiresByType font/ttf \"access plus 1 year\"

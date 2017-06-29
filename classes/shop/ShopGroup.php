@@ -98,6 +98,8 @@ class ShopGroupCore extends ObjectModel
     }
 
     /**
+     * @param bool $active
+     *
      * @return int Total of shop groups
      *
      * @since   1.0.0
@@ -127,15 +129,16 @@ class ShopGroupCore extends ObjectModel
      */
     public function getTotalShops()
     {
-        $sql = 'SELECT COUNT(*)
-				FROM '._DB_PREFIX_.'shop s
-				WHERE id_shop_group='.(int) $this->id;
-
-        return (int) Db::getInstance()->getValue($sql);
+        return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
+                ->select('COUNT(*)')
+                ->from('shop', 's')
+                ->where('`id_shop_group` = '.(int) $this->id)
+        );
     }
 
     /**
-     * @param $idGroup
+     * @param int $idGroup
      *
      * @return array|false|mysqli_result|null|PDOStatement|resource
      *
@@ -144,11 +147,12 @@ class ShopGroupCore extends ObjectModel
      */
     public static function getShopsFromGroup($idGroup)
     {
-        $sql = 'SELECT s.`id_shop`
-				FROM '._DB_PREFIX_.'shop s
-				WHERE id_shop_group='.(int) $idGroup;
-
-        return Db::getInstance()->executeS($sql);
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new DbQuery())
+                ->select('s.`id_shop`')
+                ->from('shop', 's')
+                ->where('`id_shop_group` = '.(int) $idGroup)
+        );
     }
 
     /**
@@ -163,18 +167,19 @@ class ShopGroupCore extends ObjectModel
      */
     public static function getIdByName($name)
     {
-        $sql = 'SELECT id_shop_group
-				FROM '._DB_PREFIX_.'shop_group
-				WHERE name = \''.pSQL($name).'\'';
-
-        return (int) Db::getInstance()->getValue($sql);
+        return (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
+                ->select('`id_shop_group`')
+                ->from('shop_group')
+                ->where('`name` = \''.pSQL($name).'\'')
+        );
     }
 
     /**
      * Detect dependency with customer or orders
      *
      * @param int    $idShopGroup
-     * @param string $check all|customer|order
+     * @param string $check       all|customer|order
      *
      * @return bool
      *
@@ -189,11 +194,11 @@ class ShopGroupCore extends ObjectModel
         }
 
         if ($check == 'all' || $check == 'customer') {
-            $totalCustomer = (int) Db::getInstance()->getValue(
-                '
-				SELECT count(*)
-				FROM `'._DB_PREFIX_.'customer`
-				WHERE `id_shop` IN ('.implode(', ', $listShops).')'
+            $totalCustomer = (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+                (new DbQuery())
+                    ->select('COUNT(*)')
+                    ->from('customer')
+                    ->where('`id_shop` IN ('.implode(', ', $listShops).')')
             );
             if ($totalCustomer) {
                 return true;
@@ -201,11 +206,11 @@ class ShopGroupCore extends ObjectModel
         }
 
         if ($check == 'all' || $check == 'order') {
-            $totalOrder = (int) Db::getInstance()->getValue(
-                '
-				SELECT count(*)
-				FROM `'._DB_PREFIX_.'orders`
-				WHERE `id_shop` IN ('.implode(', ', $listShops).')'
+            $totalOrder = (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+                (new DbQuery())
+                    ->select('COUNT(*)')
+                    ->from('orders')
+                    ->where('`id_shop` IN ('.implode(', ', $listShops).')')
             );
             if ($totalOrder) {
                 return true;
@@ -216,8 +221,8 @@ class ShopGroupCore extends ObjectModel
     }
 
     /**
-     * @param      $name
-     * @param bool $idShop
+     * @param string $name
+     * @param bool   $idShop
      *
      * @return false|null|string
      *
@@ -226,13 +231,13 @@ class ShopGroupCore extends ObjectModel
      */
     public function shopNameExists($name, $idShop = false)
     {
-        return Db::getInstance()->getValue(
-            '
-			SELECT id_shop
-			FROM '._DB_PREFIX_.'shop
-			WHERE name = "'.pSQL($name).'"
-			AND id_shop_group = '.(int) $this->id.'
-			'.($idShop ? 'AND id_shop != '.(int) $idShop : '')
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
+                ->select('`id_shop`')
+                ->from('shop')
+                ->where('`name` = \''.pSQL($name).'\'')
+                ->where('`id_shop_group` = '.(int) $this->id)
+                ->where($idShop ? 'AND id_shop != '.(int) $idShop : '')
         );
     }
 }
