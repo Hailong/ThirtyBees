@@ -82,6 +82,12 @@ if (_PS_DEBUG_PROFILING_) {
     include_once(_PS_TOOL_DIR_.'profiling/Tools.php');
 }
 
+/* Set uncaught exception handler */
+set_exception_handler(function ($e) {
+    $exception = new PrestaShopException($e->getMessage(), $e->getCode(), null, $e->getTrace(), $e->getFile(), $e->getLine());
+    $exception->displayMessage();
+});
+
 if (Tools::convertBytes(ini_get('upload_max_filesize')) < Tools::convertBytes('100M')) {
     ini_set('upload_max_filesize', '100M');
 }
@@ -264,3 +270,6 @@ if (!defined('_MEDIA_SERVER_2_')) {
 if (!defined('_MEDIA_SERVER_3_')) {
     define('_MEDIA_SERVER_3_', Configuration::get('PS_MEDIA_SERVER_3'));
 }
+
+Hook::exec('actionRegisterAutoloader');
+Hook::exec('actionRegisterErrorHandlers');

@@ -439,7 +439,7 @@ class WebserviceOutputBuilderCore
             $this->objectRender->setSchemaToDisplay($this->schemaToDisplay);
 
             // If a shema is asked the view must be an details type
-            $typeOfView = self::VIEW_DETAILS;
+            $typeOfView = static::VIEW_DETAILS;
         }
 
         $class = get_class($objects['empty']);
@@ -456,7 +456,7 @@ class WebserviceOutputBuilderCore
         }
 
         // If a list is asked, need to wrap with a plural node
-        if ($typeOfView === self::VIEW_LIST) {
+        if ($typeOfView === static::VIEW_LIST) {
             $output .= $this->setIndent($depth).$this->objectRender->renderNodeHeader($wsParams['objectsNodeName'], $wsParams);
         }
 
@@ -475,7 +475,7 @@ class WebserviceOutputBuilderCore
         }
 
         // If a list is asked, need to wrap with a plural node
-        if ($typeOfView === self::VIEW_LIST) {
+        if ($typeOfView === static::VIEW_LIST) {
             $output .= $this->setIndent($depth).$this->objectRender->renderNodeFooter($wsParams['objectsNodeName'], $wsParams);
         }
 

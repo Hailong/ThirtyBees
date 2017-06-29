@@ -484,7 +484,7 @@ class CategoryCore extends ObjectModel
      */
     public static function getHomeCategories($idLang, $active = true, $idShop = false)
     {
-        return self::getChildren(Configuration::get('PS_HOME_CATEGORY'), $idLang, $active, $idShop);
+        return static::getChildren(Configuration::get('PS_HOME_CATEGORY'), $idLang, $active, $idShop);
     }
 
     /**
@@ -705,8 +705,8 @@ class CategoryCore extends ObjectModel
             return false;
         }
 
-        if (!isset(self::$_links[$idCategory.'-'.$idLang])) {
-            self::$_links[$idCategory.'-'.$idLang] = Db::getInstance()->getValue(
+        if (!isset(static::$_links[$idCategory.'-'.$idLang])) {
+            static::$_links[$idCategory.'-'.$idLang] = Db::getInstance()->getValue(
                 '
 			SELECT cl.`link_rewrite`
 			FROM `'._DB_PREFIX_.'category_lang` cl
@@ -716,7 +716,7 @@ class CategoryCore extends ObjectModel
             );
         }
 
-        return self::$_links[$idCategory.'-'.$idLang];
+        return static::$_links[$idCategory.'-'.$idLang];
     }
 
     /**
@@ -1201,8 +1201,6 @@ class CategoryCore extends ObjectModel
 
         $ret = parent::add($autodate, $nullValues);
 
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CATEGORY, $this->id);
-
         if (Tools::isSubmit('checkBoxShopAsso_category')) {
             foreach (Tools::getValue('checkBoxShopAsso_category') as $idShop => $value) {
                 $position = (int) Category::getLastPosition((int) $this->id_parent, $idShop);
@@ -1284,7 +1282,7 @@ class CategoryCore extends ObjectModel
      */
     protected static function _subTree(&$categories, $idCategory, &$n)
     {
-        return self::subTree($categories, $idCategory, $n);
+        return static::subTree($categories, $idCategory, $n);
     }
 
     /**
@@ -1412,9 +1410,6 @@ class CategoryCore extends ObjectModel
             Category::regenerateEntireNtree();
             $this->recalculateLevelDepth($this->id);
         }
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CATEGORY, $this->id);
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_PRODUCT);
-
 
         Hook::exec('actionCategoryUpdate', ['category' => $this]);
 
@@ -1695,8 +1690,6 @@ class CategoryCore extends ObjectModel
         if ('TB_PAGE_CACHE_ENABLED') {
             PageCache::invalidateEntity('category', $this->id);
         }
-
-        UrlRewrite::deleteUrlRewrite(UrlRewrite::ENTITY_CATEGORY, $this->id);
 
         $this->clearCache();
 

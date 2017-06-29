@@ -844,6 +844,7 @@ class InstallModelInstall extends InstallAbstractModel
                 'statssearch',
                 'statsstock',
                 'statsvisits',
+                'tbupdater',
                 'themeconfigurator',
             ];
         }
@@ -872,7 +873,7 @@ class InstallModelInstall extends InstallAbstractModel
 
         // try to download fixtures if no low memory mode
         if ($entity === null) {
-            if (Tools::copy('http://api.prestashop.com/fixtures/'.$data['shopCountry'].'/'.$data['shopActivity'].'/fixtures.zip', $zipFile)) {
+            if (Tools::copy('http://api.thirtybees.com/fixtures/'.$data['shopCountry'].'/'.$data['shopActivity'].'/fixtures.zip', $zipFile)) {
                 Tools::deleteDirectory($tempDir, true);
                 if (Tools::ZipTest($zipFile)) {
                     if (Tools::ZipExtract($zipFile, $tempDir)) {
@@ -940,10 +941,6 @@ class InstallModelInstall extends InstallAbstractModel
         // IDS from xmlLoader are stored in order to use them for fixtures
         $this->xmlLoaderIds = $xmlLoader->getIds();
         unset($xmlLoader);
-
-        foreach (Language::getLanguages(false, false, true) as $idLang) {
-            UrlRewrite::regenerateUrlRewrites($idLang, 1);
-        }
 
         // Index products in search tables
         Search::indexation(true);

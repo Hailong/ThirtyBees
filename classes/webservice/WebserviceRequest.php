@@ -259,11 +259,11 @@ class WebserviceRequestCore
      */
     public static function getInstance()
     {
-        if (!isset(self::$_instance)) {
-            self::$_instance = new WebserviceRequest::$ws_current_classname();
+        if (!isset(static::$_instance)) {
+            static::$_instance = new WebserviceRequest::$ws_current_classname();
         }
 
-        return self::$_instance;
+        return static::$_instance;
     }
 
     /**
@@ -277,7 +277,7 @@ class WebserviceRequestCore
     protected function getOutputObject($type)
     {
         // set header param in header or as get param
-        $headers = self::getallheaders();
+        $headers = static::getallheaders();
         if (isset($headers['Io-Format'])) {
             $type = $headers['Io-Format'];
         } elseif (isset($headers['Output-Format'])) {
@@ -327,7 +327,6 @@ class WebserviceRequestCore
             'manufacturers'                  => ['description' => 'The product manufacturers', 'class' => 'Manufacturer'],
             'order_carriers'                 => ['description' => 'The Order carriers', 'class' => 'OrderCarrier'],
             'order_details'                  => ['description' => 'Details of an order', 'class' => 'OrderDetail'],
-            'order_discounts'                => ['description' => 'Discounts of an order', 'class' => 'OrderDiscount'],
             'order_histories'                => ['description' => 'The Order histories', 'class' => 'OrderHistory'],
             'order_invoices'                 => ['description' => 'The Order invoices', 'class' => 'OrderInvoice'],
             'orders'                         => ['description' => 'The Customers orders', 'class' => 'Order'],
@@ -902,7 +901,7 @@ class WebserviceRequestCore
 				FROM '._DB_PREFIX_.'webservice_account wsa LEFT JOIN '._DB_PREFIX_.'webservice_account_shop wsas ON (wsa.id_webservice_account = wsas.id_webservice_account)
 				WHERE wsa.key = \''.pSQL($key).'\'';
 
-        foreach (self::$shopIDs as $id_shop) {
+        foreach (static::$shopIDs as $id_shop) {
             $OR[] = ' wsas.id_shop = '.(int) $id_shop.' ';
         }
         $sql .= ' AND ('.implode('OR', $OR).') ';
@@ -925,24 +924,24 @@ class WebserviceRequestCore
      */
     protected function shopExists($params)
     {
-        if (count(self::$shopIDs)) {
+        if (count(static::$shopIDs)) {
             return true;
         }
 
         if (isset($params['id_shop'])) {
             if ($params['id_shop'] != 'all' && is_numeric($params['id_shop'])) {
                 Shop::setContext(Shop::CONTEXT_SHOP, (int) $params['id_shop']);
-                self::$shopIDs[] = (int) $params['id_shop'];
+                static::$shopIDs[] = (int) $params['id_shop'];
 
                 return true;
             } elseif ($params['id_shop'] == 'all') {
                 Shop::setContext(Shop::CONTEXT_ALL);
-                self::$shopIDs = Shop::getShops(true, null, true);
+                static::$shopIDs = Shop::getShops(true, null, true);
 
                 return true;
             }
         } else {
-            self::$shopIDs[] = Context::getContext()->shop->id;
+            static::$shopIDs[] = Context::getContext()->shop->id;
 
             return true;
         }
@@ -963,8 +962,8 @@ class WebserviceRequestCore
     {
         if (isset($params['id_group_shop']) && is_numeric($params['id_group_shop'])) {
             Shop::setContext(Shop::CONTEXT_GROUP, (int) $params['id_group_shop']);
-            self::$shopIDs = Shop::getShops(true, (int) $params['id_group_shop'], true);
-            if (count(self::$shopIDs) == 0) {
+            static::$shopIDs = Shop::getShops(true, (int) $params['id_group_shop'], true);
+            if (count(static::$shopIDs) == 0) {
                 // @FIXME Set ErrorCode !
                 $this->setError(500, 'This group shop doesn\'t have shops', 999);
 
@@ -1442,7 +1441,7 @@ class WebserviceRequestCore
                 }
                 $sql .= '`';
 
-                foreach (self::$shopIDs as $idShop) {
+                foreach (static::$shopIDs as $idShop) {
                     $OR[] = ' (id_shop = '.(int) $idShop.($checkShopGroup ? ' OR (id_shop = 0 AND id_shop_group='.(int) Shop::getGroupFromShop((int) $idShop).')' : '').') ';
                 }
 
@@ -1748,9 +1747,9 @@ class WebserviceRequestCore
                         if ($assoc !== false && $assoc['type'] != 'fk_shop') {
                             // PUT nor POST is destructive, no deletion
                             $sql = 'INSERT IGNORE INTO `'.bqSQL(_DB_PREFIX_.$this->resourceConfiguration['retrieveData']['table'].'_'.$assoc['type']).'` (id_shop, '.pSQL($this->resourceConfiguration['fields']['id']['sqlId']).') VALUES ';
-                            foreach (self::$shopIDs as $id) {
+                            foreach (static::$shopIDs as $id) {
                                 $sql .= '('.(int) $id.','.(int) $object->id.')';
-                                if ($id != end(self::$shopIDs)) {
+                                if ($id != end(static::$shopIDs)) {
                                     $sql .= ', ';
                                 }
                             }

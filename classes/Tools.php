@@ -80,7 +80,7 @@ class ToolsCore
                 break;
             case 'RANDOM':
                 $numBytes = (int) ceil($length * 0.75);
-                $bytes = self::getBytes($numBytes);
+                $bytes = static::getBytes($numBytes);
 
                 return substr(rtrim(base64_encode($bytes), '='), 0, $length);
             case 'ALPHANUMERIC':
@@ -763,12 +763,12 @@ class ToolsCore
     /**
      * Return price with currency sign for a given product
      *
-     * @param float        $price    Product price
-     * @param object|array $currency Current currency (object, id_currency, NULL => context currency)
+     * @param float        $price      Product price
+     * @param object|array $tbCurrency Current (thirty bees) Currency
      * @param bool         $noUtf8
      * @param Context      $context
      *
-     * @return string Price correctly formated (sign, decimal separator...)
+     * @return string Price correctly formatted (sign, decimal separator...)
      * if you modify this function, don't forget to modify the Javascript function formatCurrency (in tools.js)
      *
      * @since   1.0.0
@@ -776,7 +776,7 @@ class ToolsCore
      *
      * @todo    : move to intl
      */
-    public static function displayPrice($price, $currency = null, $noUtf8 = false, Context $context = null)
+    public static function displayPrice($price, $tbCurrency = null, $noUtf8 = false, Context $context = null)
     {
         if (!is_numeric($price)) {
             return $price;
@@ -784,18 +784,22 @@ class ToolsCore
         if (!$context) {
             $context = Context::getContext();
         }
-        if ($currency === null) {
-            $currency = $context->currency;
-        } elseif (is_int($currency)) {
-            $currency = Currency::getCurrencyInstance((int) $currency);
+        if (!$tbCurrency) {
+            $tbCurrency = $context->currency;
+        } elseif (is_int($tbCurrency)) {
+            $tbCurrency = Currency::getCurrencyInstance((int) $tbCurrency);
         }
 
-        if (is_array($currency)) {
-            $currencyIso = $currency['iso_code'];
-            $currencyDecimals = (int) $currency['decimals'] * _PS_PRICE_DISPLAY_PRECISION_;
-        } elseif (is_object($currency)) {
-            $currencyIso = $currency->iso_code;
-            $currencyDecimals = (int) $currency->decimals * _PS_PRICE_DISPLAY_PRECISION_;
+        if (is_array($tbCurrency)) {
+            $currencyIso = $tbCurrency['iso_code'];
+            $currencyDecimals = (int) $tbCurrency['decimals'] * _PS_PRICE_DISPLAY_PRECISION_;
+            $currencyArray = $tbCurrency;
+
+            $tbCurrency = new Currency();
+            $tbCurrency->hydrate($currencyArray);
+        } elseif (is_object($tbCurrency)) {
+            $currencyIso = $tbCurrency->iso_code;
+            $currencyDecimals = (int) $tbCurrency->decimals * _PS_PRICE_DISPLAY_PRECISION_;
         } else {
             return false;
         }
@@ -807,6 +811,9 @@ class ToolsCore
         $numberFormatRepository = new NumberFormatRepository();
 
         $currency = $currencyRepository->get(Tools::strtoupper($currencyIso));
+        if ($tbCurrency->sign) {
+            $currency->setSymbol($tbCurrency->sign);
+        }
         $numberFormat = $numberFormatRepository->get($languageIso);
 
         $currencyFormatter = new NumberFormatter($numberFormat, NumberFormatter::CURRENCY);
@@ -1294,7 +1301,7 @@ class ToolsCore
         foreach (scandir(_PS_ROOT_DIR_.'/config/xml') as $file) {
             $pathInfo = pathinfo($file, PATHINFO_EXTENSION);
             if (($pathInfo == 'xml') && ($file != 'default.xml') && !in_array(basename($file, '.'.$pathInfo), $themes)) {
-                self::deleteFile(_PS_ROOT_DIR_.'/config/xml/'.$file);
+                static::deleteFile(_PS_ROOT_DIR_.'/config/xml/'.$file);
             }
         }
     }
@@ -1623,17 +1630,6 @@ class ToolsCore
         return $link;
     }
 
-    /**
-     * Truncate strings
-     *
-     * @param string $str
-     * @param int    $max_length Max length
-     * @param string $suffix     Suffix optional
-     *
-     * @return string $str truncated
-     */
-    /* CAUTION : Use it only on module hookEvents.
-    ** For other purposes use the smarty function instead */
     /**
      * getHttpHost return the <b>current</b> host used, with the protocol (http or https) if $http is true
      * This function should not be used to choose http or https domain name.
@@ -2904,19 +2900,19 @@ class ToolsCore
      */
     public static function getMediaServer($filename)
     {
-        if (self::$_cache_nb_media_servers === null && defined('_MEDIA_SERVER_1_') && defined('_MEDIA_SERVER_2_') && defined('_MEDIA_SERVER_3_')) {
+        if (static::$_cache_nb_media_servers === null && defined('_MEDIA_SERVER_1_') && defined('_MEDIA_SERVER_2_') && defined('_MEDIA_SERVER_3_')) {
             if (_MEDIA_SERVER_1_ == '') {
-                self::$_cache_nb_media_servers = 0;
+                static::$_cache_nb_media_servers = 0;
             } elseif (_MEDIA_SERVER_2_ == '') {
-                self::$_cache_nb_media_servers = 1;
+                static::$_cache_nb_media_servers = 1;
             } elseif (_MEDIA_SERVER_3_ == '') {
-                self::$_cache_nb_media_servers = 2;
+                static::$_cache_nb_media_servers = 2;
             } else {
-                self::$_cache_nb_media_servers = 3;
+                static::$_cache_nb_media_servers = 3;
             }
         }
 
-        if ($filename && self::$_cache_nb_media_servers && ($id_media_server = (abs(crc32($filename)) % self::$_cache_nb_media_servers + 1))) {
+        if ($filename && static::$_cache_nb_media_servers && ($id_media_server = (abs(crc32($filename)) % static::$_cache_nb_media_servers + 1))) {
             return constant('_MEDIA_SERVER_'.$id_media_server.'_');
         }
 
@@ -3014,8 +3010,8 @@ class ToolsCore
         // Check current content of .htaccess and save all code outside of thirty bees comments
         $specific_before = $specific_after = '';
         if (file_exists($path)) {
-            if (self::isSubmit('htaccess')) {
-                $content = self::getValue('htaccess');
+            if (static::isSubmit('htaccess')) {
+                $content = static::getValue('htaccess');
             } else {
                 $content = file_get_contents($path);
             }
@@ -3416,8 +3412,8 @@ exit;
         if ($smarty->force_compile == 0 && $smarty->caching == $level) {
             return;
         }
-        self::$_forceCompile = (int) $smarty->force_compile;
-        self::$_caching = (int) $smarty->caching;
+        static::$_forceCompile = (int) $smarty->force_compile;
+        static::$_caching = (int) $smarty->caching;
         $smarty->force_compile = 0;
         $smarty->caching = (int) $level;
         $smarty->cache_lifetime = 31536000; // 1 Year
@@ -3435,11 +3431,11 @@ exit;
             $context = Context::getContext();
         }
 
-        if (isset(self::$_forceCompile)) {
-            $context->smarty->force_compile = (int) self::$_forceCompile;
+        if (isset(static::$_forceCompile)) {
+            $context->smarty->force_compile = (int) static::$_forceCompile;
         }
-        if (isset(self::$_caching)) {
-            $context->smarty->caching = (int) self::$_caching;
+        if (isset(static::$_caching)) {
+            $context->smarty->caching = (int) static::$_caching;
         }
     }
 
@@ -3985,7 +3981,7 @@ exit;
         while (false !== ($file = readdir($dir))) {
             if (($file != '.') && ($file != '..')) {
                 if (is_dir($src.DIRECTORY_SEPARATOR.$file)) {
-                    self::recurseCopy($src.DIRECTORY_SEPARATOR.$file, $dst.DIRECTORY_SEPARATOR.$file, $del);
+                    static::recurseCopy($src.DIRECTORY_SEPARATOR.$file, $dst.DIRECTORY_SEPARATOR.$file, $del);
                 } else {
                     copy($src.DIRECTORY_SEPARATOR.$file, $dst.DIRECTORY_SEPARATOR.$file);
                     if ($del && is_writable($src.DIRECTORY_SEPARATOR.$file)) {
@@ -4011,11 +4007,11 @@ exit;
      */
     public static function file_exists_cache($filename)
     {
-        if (!isset(self::$file_exists_cache[$filename])) {
-            self::$file_exists_cache[$filename] = file_exists($filename);
+        if (!isset(static::$file_exists_cache[$filename])) {
+            static::$file_exists_cache[$filename] = file_exists($filename);
         }
 
-        return self::$file_exists_cache[$filename];
+        return static::$file_exists_cache[$filename];
     }
 
     /**
@@ -4112,21 +4108,13 @@ exit;
     }
 
     /**
-     * @return bool
+     * @return true
      *
-     * @since   1.0.0
-     * @version 1.0.0 Initial version
+     * @deprecated 1.0.1 Not everyone uses Apache
      */
     public static function modRewriteActive()
     {
-        if (Tools::apacheModExists('mod_rewrite')) {
-            return true;
-        }
-        if ((isset($_SERVER['HTTP_MOD_REWRITE']) && Tools::strtolower($_SERVER['HTTP_MOD_REWRITE']) == 'on') || Tools::strtolower(getenv('HTTP_MOD_REWRITE')) == 'on') {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     /**
@@ -4367,22 +4355,22 @@ exit;
      */
     public static function getUserPlatform()
     {
-        if (isset(self::$_user_plateform)) {
-            return self::$_user_plateform;
+        if (isset(static::$_user_plateform)) {
+            return static::$_user_plateform;
         }
 
         $user_agent = $_SERVER['HTTP_USER_AGENT'];
-        self::$_user_plateform = 'unknown';
+        static::$_user_plateform = 'unknown';
 
         if (preg_match('/linux/i', $user_agent)) {
-            self::$_user_plateform = 'Linux';
+            static::$_user_plateform = 'Linux';
         } elseif (preg_match('/macintosh|mac os x/i', $user_agent)) {
-            self::$_user_plateform = 'Mac';
+            static::$_user_plateform = 'Mac';
         } elseif (preg_match('/windows|win32/i', $user_agent)) {
-            self::$_user_plateform = 'Windows';
+            static::$_user_plateform = 'Windows';
         }
 
-        return self::$_user_plateform;
+        return static::$_user_plateform;
     }
 
     /**
@@ -4393,28 +4381,28 @@ exit;
      */
     public static function getUserBrowser()
     {
-        if (isset(self::$_user_browser)) {
-            return self::$_user_browser;
+        if (isset(static::$_user_browser)) {
+            return static::$_user_browser;
         }
 
         $user_agent = $_SERVER['HTTP_USER_AGENT'];
-        self::$_user_browser = 'unknown';
+        static::$_user_browser = 'unknown';
 
         if (preg_match('/MSIE/i', $user_agent) && !preg_match('/Opera/i', $user_agent)) {
-            self::$_user_browser = 'Internet Explorer';
+            static::$_user_browser = 'Internet Explorer';
         } elseif (preg_match('/Firefox/i', $user_agent)) {
-            self::$_user_browser = 'Mozilla Firefox';
+            static::$_user_browser = 'Mozilla Firefox';
         } elseif (preg_match('/Chrome/i', $user_agent)) {
-            self::$_user_browser = 'Google Chrome';
+            static::$_user_browser = 'Google Chrome';
         } elseif (preg_match('/Safari/i', $user_agent)) {
-            self::$_user_browser = 'Apple Safari';
+            static::$_user_browser = 'Apple Safari';
         } elseif (preg_match('/Opera/i', $user_agent)) {
-            self::$_user_browser = 'Opera';
+            static::$_user_browser = 'Opera';
         } elseif (preg_match('/Netscape/i', $user_agent)) {
-            self::$_user_browser = 'Netscape';
+            static::$_user_browser = 'Netscape';
         }
 
-        return self::$_user_browser;
+        return static::$_user_browser;
     }
 
     /**

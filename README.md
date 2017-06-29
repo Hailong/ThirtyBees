@@ -1,18 +1,17 @@
 # thirty bees 
-[![Build Status](https://travis-ci.org/thirtybees/ThirtyBees.svg?branch=master)](https://travis-ci.org/thirtybees/ThirtyBees)
-[![Coverage Status](https://coveralls.io/repos/github/thirtybees/ThirtyBees/badge.svg?branch=master)](https://coveralls.io/github/thirtybees/ThirtyBees?branch=master)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/ThirtyBees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/ThirtyBees/?branch=master)  
+[![Build Status](https://travis-ci.org/thirtybees/thirtybees.svg?branch=master)](https://travis-ci.org/thirtybees/thirtybees)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/thirtybees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/thirtybees/?branch=master)  
 
 thirty bees is an open-source fork of PrestaShop 1.6. Our aim with this fork is to provide a feature set that merchants need. We are rewriting a lot of the core modules and cleaning up the legacy code. We aim to provide a stable, feature-rich e-commerce platform to grow businesses.  
 
 ![thirty bees screenshot](https://cloud.githubusercontent.com/assets/6775736/22063185/c5ef8e3c-dd7d-11e6-923c-4b62ac404c86.png)
 
 
-## Roadmap for thirty bees to version 1.0.0
+## Roadmap for thirty bees version 1.0.x
 
 **Overview of the general goal:**
 
-To launch version 1.0.0 of the thirty bees core around February 1st 2017. In this version we are striving to fix as many bugs as possible, while maintaining compatibility with existing themes and modules. We want to provide the stablest platform for current users to migrate into. 
+With version 1.0.x we are striving to fix as many bugs as possible, while maintaining compatibility with existing themes and modules. We want to provide the stablest platform for current users to migrate into. 
 
 **New Features being added into v1.0.0 of thirty bees:**
 
@@ -36,9 +35,9 @@ Native modules will be refactored to remove legacy code. Code that supports prev
 
 **New native modules:**
 
-* MailChimp sync
+* MailChimp (including e-commerce features)
 * Stripe (Credit cards, Apple Pay, AliPay, Bitcoins)
-* Thirty Bees blog module
+* thirty bees blog module
 
 ### Updated roadmap
 You can find the latest version of the roadmap here: https://thirtybees.com/roadmap
@@ -66,12 +65,12 @@ You can find the latest version of the roadmap here: https://thirtybees.com/road
     - apcu/redis/memcache(d)
 
 ## Installation
-There is currently no release package available, but you can install from git. These are the instructions:
+These are the instructions to install via git:
 - Recursively clone the repository:
 ```shell
-$ git clone https://github.com/thirtybees/ThirtyBees.git --recursive
+$ git clone https://github.com/thirtybees/thirtybees.git --recursive
 ```
-- Then cd into the `ThirtyBees` folder
+- Then cd into the `thirtybees` folder
 - Run composer to install the dependencies:
 ```shell
 $ composer install

@@ -143,8 +143,8 @@ class CurrencyCore extends ObjectModel
     }
 
     /**
-     * @param      $idModule
-     * @param null $idShop
+     * @param int      $idModule
+     * @param int|null $idShop
      *
      * @return array|bool|null|object
      *
@@ -166,8 +166,8 @@ class CurrencyCore extends ObjectModel
     }
 
     /**
-     * @param      $idModule
-     * @param null $idShop
+     * @param int      $idModule
+     * @param int|null $idShop
      *
      * @return array|false|mysqli_result|null|PDOStatement|resource
      *
@@ -193,8 +193,8 @@ class CurrencyCore extends ObjectModel
     }
 
     /**
-     * @param      $idModule
-     * @param null $idShop
+     * @param int      $idModule
+     * @param int|null $idShop
      *
      * @return array|bool|false|mysqli_result|null|PDOStatement|resource
      *
@@ -220,7 +220,7 @@ class CurrencyCore extends ObjectModel
     }
 
     /**
-     * @param $idCurrency
+     * @param int $idCurrency
      *
      * @return array|bool|null|object
      *
@@ -251,18 +251,26 @@ class CurrencyCore extends ObjectModel
         }
 
         $currencyRates = CurrencyRateModule::getCurrencyRateInfo();
+        $moduleRates = [];
         foreach ($currencyRates as $currency => $module) {
-            /** @var CurrencyRateModule $module */
-            $currencyObj = new Currency(Currency::getIdByIsoCode($currency));
-            if (!Validate::isLoadedObject($currencyObj)) {
+            if (Tools::strtoupper($currency) === Tools::strtoupper($defaultCurrency->iso_code)) {
                 continue;
             }
-            if ($currencyObj->id != $defaultCurrency->id && Validate::isLoadedObject($module)) {
-                /** @var Currency $currency */
-                $rate = $module->hookRate($defaultCurrency->iso_code, $currencyObj->iso_code);
-                if ($rate !== false) {
-                    $currencyObj->conversion_rate = $rate;
-                    $currencyObj->save();
+            if (!isset($moduleRates[$module->id])) {
+                $moduleRates[$module->id] = [Tools::strtoupper($currency)];
+            } else {
+                $moduleRates[$module->id][] = Tools::strtoupper($currency);
+            }
+        }
+
+        foreach ($moduleRates as $idModule => $currencies) {
+            $response = Hook::exec('actionRetrieveCurrencyRates', ['currencies' => $currencies, 'baseCurrency' => Tools::strtoupper($defaultCurrency->iso_code)], $idModule, true);
+            foreach ($response as $rates) {
+                foreach ($rates as $isoCode => $rate) {
+                    $currency = Currency::getCurrencyInstance(Currency::getIdByIsoCode($isoCode));
+                    $currency->conversion_rate = $rate;
+
+                    $currency->save();
                 }
             }
         }
@@ -316,7 +324,7 @@ class CurrencyCore extends ObjectModel
     }
 
     /**
-     * @param $id
+     * @param int $id
      *
      * @return mixed
      *
@@ -325,11 +333,11 @@ class CurrencyCore extends ObjectModel
      */
     public static function getCurrencyInstance($id)
     {
-        if (!isset(self::$currencies[$id])) {
-            self::$currencies[(int) ($id)] = new Currency($id);
+        if (!isset(static::$currencies[$id])) {
+            static::$currencies[(int) ($id)] = new Currency($id);
         }
 
-        return self::$currencies[(int) ($id)];
+        return static::$currencies[(int) ($id)];
     }
 
     /**
@@ -423,8 +431,8 @@ class CurrencyCore extends ObjectModel
             $idShop = (int) Context::getContext()->shop->id;
         }
 
-        if (!isset(self::$countActiveCurrencies[$idShop])) {
-            self::$countActiveCurrencies[$idShop] = Db::getInstance()->getValue(
+        if (!isset(static::$countActiveCurrencies[$idShop])) {
+            static::$countActiveCurrencies[$idShop] = Db::getInstance()->getValue(
                 '
 				SELECT COUNT(DISTINCT c.id_currency) FROM `'._DB_PREFIX_.'currency` c
 				LEFT JOIN '._DB_PREFIX_.'currency_shop cs ON (cs.id_currency = c.id_currency AND cs.id_shop = '.(int) $idShop.')
@@ -433,7 +441,7 @@ class CurrencyCore extends ObjectModel
             );
         }
 
-        return self::$countActiveCurrencies[$idShop];
+        return static::$countActiveCurrencies[$idShop];
     }
 
     /**
@@ -451,7 +459,7 @@ class CurrencyCore extends ObjectModel
             return false;
         }
 
-        if (self::exists($this->iso_code, $this->iso_code_num)) {
+        if (static::exists($this->iso_code, $this->iso_code_num)) {
             return false;
         }
 

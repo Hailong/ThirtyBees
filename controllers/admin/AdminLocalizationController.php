@@ -208,7 +208,7 @@ class AdminLocalizationControllerCore extends AdminController
                     if (!$localizationPack->loadLocalisationPack($pack, $selection, false, $isoLocalizationPack)) {
                         $this->errors = array_merge($this->errors, $localizationPack->getErrors());
                     } else {
-                        Tools::redirectAdmin(self::$currentIndex.'&conf=23&token='.$this->token);
+                        Tools::redirectAdmin(static::$currentIndex.'&conf=23&token='.$this->token);
                     }
                 }
             }
@@ -231,7 +231,9 @@ class AdminLocalizationControllerCore extends AdminController
     }
 
     /**
-     * @sinec 1.0.0
+     * @return void
+     *
+     * @since 1.0.0
      */
     public function display()
     {
@@ -240,6 +242,8 @@ class AdminLocalizationControllerCore extends AdminController
     }
 
     /**
+     * @return void
+     *
      * @since 1.0.0
      */
     public function initContent()
@@ -255,7 +259,7 @@ class AdminLocalizationControllerCore extends AdminController
             [
                 'localization_form'         => $this->renderForm(),
                 'localization_options'      => $this->renderOptions(),
-                'url_post'                  => self::$currentIndex.'&token='.$this->token,
+                'url_post'                  => static::$currentIndex.'&token='.$this->token,
                 'show_page_header_toolbar'  => $this->show_page_header_toolbar,
                 'page_header_toolbar_title' => $this->page_header_toolbar_title,
                 'page_header_toolbar_btn'   => $this->page_header_toolbar_btn,
@@ -278,7 +282,6 @@ class AdminLocalizationControllerCore extends AdminController
             $xmlLocalization = @simplexml_load_file($localizationFile);
         }
 
-        // Array to hold the list of country ISOs that have a localization pack hosted on prestashop.com
         $remoteIsos = [];
 
         $i = 0;
@@ -289,10 +292,6 @@ class AdminLocalizationControllerCore extends AdminController
                 $localizationsPack[$i]['name'] = (string) $pack->name;
                 $i++;
             }
-        }
-
-        if (!$localizationsPack) {
-            return $this->displayWarning($this->l('Cannot connect'));
         }
 
         // Add local localization .xml files to the list if they are not already there

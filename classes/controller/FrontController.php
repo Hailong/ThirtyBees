@@ -178,15 +178,15 @@ class FrontControllerCore extends Controller
             return [];
         }
 
-        if (!is_array(self::$currentCustomerGroups)) {
-            self::$currentCustomerGroups = [];
+        if (!is_array(static::$currentCustomerGroups)) {
+            static::$currentCustomerGroups = [];
             $result = Db::getInstance()->executeS('SELECT id_group FROM '._DB_PREFIX_.'customer_group WHERE id_customer = '.(int) $context->customer->id);
             foreach ($result as $row) {
-                self::$currentCustomerGroups[] = $row['id_group'];
+                static::$currentCustomerGroups[] = $row['id_group'];
             }
         }
 
-        return self::$currentCustomerGroups;
+        return static::$currentCustomerGroups;
     }
 
     /**
@@ -734,79 +734,75 @@ class FrontControllerCore extends Controller
             // $template = ($defer ? $html.$javascript : preg_replace('/(?<!\$)'.$js_tag.'/', $javascript, $html)).$live_edit_content.((!Tools::getIsset($this->ajax) || ! $this->ajax) ? '</body></html>' : '');
 
             if ($defer && (!Tools::getIsset($this->ajax) || !$this->ajax)) {
-                $template = $html.$javascript;
+                $templ = $html.$javascript;
             } else {
-                $template = preg_replace('/(?<!\$)'.$jsTag.'/', $javascript, $html);
+                $templ = preg_replace('/(?<!\$)'.$jsTag.'/', $javascript, $html);
             }
 
-            $template .= $liveEditContent.((!Tools::getIsset($this->ajax) || !$this->ajax) ? '</body></html>' : '');
+            $templ .= $liveEditContent.((!Tools::getIsset($this->ajax) || !$this->ajax) ? '</body></html>' : '');
 
-            // $template = ($defer ? $html . $javascript : str_replace($js_tag, $javascript, $html)) . $live_edit_content . ((!Tools::getIsset($this->ajax) || !$this->ajax) ? '</body></html>' : '');
+            // $templ = ($defer ? $html . $javascript : str_replace($js_tag, $javascript, $html)) . $live_edit_content . ((!Tools::getIsset($this->ajax) || !$this->ajax) ? '</body></html>' : '');
         } else {
-            $template = $html;
+            $templ = $html;
         }
 
-        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && Tools::strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
-        $isLogged = Tools::getIsset($this->context->customer) ? $this->context->customer->isLogged() && Configuration::get('TB_PAGE_CACHE_SKIPLOGIN') : false;
-
-        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
-            $proto = 'https'.':'.'/'.'/';
-        } else {
-            $proto = 'http'.':'.'/'.'/';
-        }
         //merge two arrays 1- static params to be removed and 2 - dynamic ones from the config.
-        $ignoreParams1 = ['refresh_cache', 'no_cache'];
-        $ignoreParams = Configuration::get('TB_PAGE_CACHE_IGNOREPARAMS');
-        $ignoreParams = explode(',', $ignoreParams);
-        $ignoreParams = array_merge($ignoreParams, $ignoreParams1);
+        $paramsToIgnore = ['refresh_cache', 'no_cache'];
+        $paramsToIgnoreSaved = Configuration::get('TB_PAGE_CACHE_IGNOREPARAMS');
 
-        list($uri, $queries) = array_pad(explode('?', $_SERVER['REQUEST_URI']), 2, '');
-        parse_str($queries, $query);
-        foreach ($ignoreParams as $ignoreParam) {
-            $ignoreParam = trim($ignoreParam);
-            unset($query[$ignoreParam]);
+        if ($paramsToIgnoreSaved) {
+            $paramsToIgnoreSaved = explode(',', $paramsToIgnoreSaved);
+        }
+        if (is_array($paramsToIgnoreSaved)) {
+            $paramsToIgnore = array_merge($paramsToIgnore, $paramsToIgnoreSaved);
         }
 
-        $queryString = http_build_query($query);
+        $url = explode('?', $_SERVER['REQUEST_URI']);
+        $uri = $url[0];
+        $queryString = isset($url[1]) ? $url[1] : '';
+        parse_str($queryString, $queryStringParams);
+
+        foreach ($paramsToIgnore as $param) {
+            if (isset($queryStringParams[$param])) {
+                unset($queryStringParams[$param]);
+            }
+        }
+
+        $protocol = Configuration::get('PS_SSL_ENABLED') ? 'https://' : 'http://';
+
+        $newQueryString = http_build_query($queryStringParams);
+
         if ($queryString == '') {
-            $url = $proto.$_SERVER['HTTP_HOST'].$uri;
+            $newUrl = $protocol.$_SERVER['HTTP_HOST'].$uri;
         } else {
-            $url = $proto.$_SERVER['HTTP_HOST'].$uri.'?'.$queryString;
+            $newUrl = $protocol.$_SERVER['HTTP_HOST'].$uri.'?'.$newQueryString;
         }
 
-        if (!Tools::isSubmit('no_cache') && !$isAjax && !$isLogged) {
+        $ajaxCalling = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && Tools::strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+
+        if (!Tools::getValue('no_cache') && !$ajaxCalling) {
             $entityType = Dispatcher::getInstance()->getController();
-            $cControllers = json_decode(Configuration::get('TB_PAGE_CACHE_CONTROLLERS'));
-            if (in_array($entityType, $cControllers) && !Tools::isSubmit('live_edit') && !Tools::isSubmit('live_configurator_token')) {
-                $idPage = md5($url);
-                $idLanguage = (int) $this->context->language->id;
-                if (Tools::getIsset($_SERVER['HTTP_USER_AGENT']) && preg_match('/TB_WARMUP_BOT/', $_SERVER['HTTP_USER_AGENT'])) {
-                    $idCurrency = Configuration::get('TB_PAGE_CACHE_WARMUP_CURRENCY');
-                    $idCountry = Configuration::get('TB_PAGE_CACHE_WARMUP_COUNTRY');
-                } else {
-                    $idCurrency = (int) $this->context->currency->id;
-                    $idCountry = (int) $this->context->country->id;
-                }
+            $cachedControllers = json_decode(Configuration::get('TB_PAGE_CACHE_CONTROLLERS'));
+            if (in_array($entityType, $cachedControllers) && !Tools::isSubmit('live_edit') && !Tools::isSubmit('live_configurator_token')) {
+                $idPage = Tools::encrypt($newUrl);
+                $idCurrency = (int) $this->context->currency->id;
+                $idLang = (int) $this->context->language->id;
+                $idCountry = (int) $this->context->country->id;
                 $idShop = (int) $this->context->shop->id;
+
+                $pageKey = Tools::encrypt('pagecache_public_'.$idPage.$idCurrency.$idLang.$idCountry.$idShop);
+
                 $idEntity = (int) Tools::getValue('id_'.$entityType);
 
-                $countryCheck = (bool) Configuration::get('TB_PAGE_CACHE_COUNTRY');
-
-                $key = md5('pagecache_public_'.$idPage.$idCurrency.$idLanguage.($countryCheck ? $idCountry : '').$idShop);
-
                 $cache = Cache::getInstance();
-                if (Configuration::get('TB_PAGE_CACHE_GZIP')) {
-                    $content = gzdeflate($template);
-                } else {
-                    $content = $template;
-                }
+                $cache->set($pageKey, $templ);
 
-                $cache->set($key, $content);
-                PageCache::cacheKey($key, $idCurrency, $idLanguage, $idCountry, $idShop, $entityType, $idEntity);
+                PageCache::cacheKey($pageKey, $idCurrency, $idLang, $idCountry, $idShop, $entityType, $idEntity);
+
             }
         }
 
-        echo $template;
+        echo $templ;
     }
 
     /**
@@ -856,8 +852,8 @@ class FrontControllerCore extends Controller
                 );
 
                 // If the controller is a module, then getTemplatePath will try to find the template in the modules, so we need to instanciate a real frontcontroller
-                $front_controller = preg_match('/ModuleFrontController$/', get_class($this)) ? new FrontController() : $this;
-                $this->smartyOutputContent($front_controller->getTemplatePath($this->getThemeDir().'maintenance.tpl'));
+                $frontController = preg_match('/ModuleFrontController$/', get_class($this)) ? new FrontController() : $this;
+                $this->smartyOutputContent($frontController->getTemplatePath($this->getThemeDir().'maintenance.tpl'));
                 exit;
             }
         }
@@ -1184,21 +1180,21 @@ class FrontControllerCore extends Controller
      */
     public function initFooter()
     {
-        $hook_footer = Hook::exec('displayFooter');
-        $extra_js = Configuration::get('PS_CUSTOMCODE_JS');
-        $extra_js_conf = '';
+        $hookFooter = Hook::exec('displayFooter');
+        $extraJs = Configuration::get(Configuration::CUSTOMCODE_JS);
+        $extraJsConf = '';
         if (isset($this->php_self) && $this->php_self == 'order-confirmation') {
-            $extra_js_conf = Configuration::get('PS_CUSTOMCODE_ORDERCONF_JS');
+            $extraJsConf = Configuration::get(Configuration::CUSTOMCODE_ORDERCONF_JS);
         }
 
-        $hook_footer .= '<script>'.$extra_js.$extra_js_conf.'</script>';
+        $hookFooter .= '<script>'.$extraJs.$extraJsConf.'</script>';
 
         $this->context->smarty->assign(
             [
-                'HOOK_FOOTER'            => $hook_footer,
-                'conditions'             => Configuration::get('PS_CONDITIONS'),
-                'id_cgv'                 => Configuration::get('PS_CONDITIONS_CMS_ID'),
-                'PS_SHOP_NAME'           => Configuration::get('PS_SHOP_NAME'),
+                'HOOK_FOOTER'            => $hookFooter,
+                'conditions'             => Configuration::get(Configuration::CONDITIONS),
+                'id_cgv'                 => Configuration::get(Configuration::CONDITIONS_CMS_ID),
+                'PS_SHOP_NAME'           => Configuration::get(Configuration::SHOP_NAME),
                 'PS_ALLOW_MOBILE_DEVICE' => isset($_SERVER['HTTP_USER_AGENT']) && (bool) Configuration::get('PS_ALLOW_MOBILE_DEVICE') && @filemtime(_PS_THEME_MOBILE_DIR_),
             ]
         );
@@ -1319,7 +1315,7 @@ class FrontControllerCore extends Controller
      */
     public function pagination($totalProducts = null)
     {
-        if (!self::$initialized) {
+        if (!static::$initialized) {
             $this->init();
         } elseif (!$this->context) {
             $this->context = Context::getContext();
@@ -1420,11 +1416,11 @@ class FrontControllerCore extends Controller
          */
         global $useSSL, $cookie, $smarty, $cart, $iso, $defaultCountry, $protocolLink, $protocolContent, $link, $cssFiles, $jsFiles, $currency;
 
-        if (self::$initialized) {
+        if (static::$initialized) {
             return;
         }
 
-        self::$initialized = true;
+        static::$initialized = true;
 
         parent::init();
 
@@ -1750,10 +1746,10 @@ class FrontControllerCore extends Controller
          * Use the Context to access objects instead.
          * Example: $this->context->cart
          */
-        self::$cookie = $this->context->cookie;
-        self::$cart = $cart;
-        self::$smarty = $this->context->smarty;
-        self::$link = $link;
+        static::$cookie = $this->context->cookie;
+        static::$cart = $cart;
+        static::$smarty = $this->context->smarty;
+        static::$link = $link;
         $defaultCountry = $this->context->country;
 
         $this->displayMaintenancePage();
@@ -1846,8 +1842,6 @@ class FrontControllerCore extends Controller
             /* Check if Maxmind Database exists */
             if (@filemtime(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_)) {
                 if (!isset($this->context->cookie->iso_code_country) || (isset($this->context->cookie->iso_code_country) && !in_array(strtoupper($this->context->cookie->iso_code_country), explode(';', Configuration::get('PS_ALLOWED_COUNTRIES'))))) {
-                    include_once _PS_GEOIP_DIR_.'geoipcity.inc';
-
                     $gi = geoip_open(realpath(_PS_GEOIP_DIR_._PS_GEOIP_CITY_FILE_), GEOIP_STANDARD);
                     $record = geoip_record_by_addr($gi, Tools::getRemoteAddr());
 

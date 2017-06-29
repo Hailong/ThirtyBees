@@ -260,8 +260,6 @@ class CMSCore extends ObjectModel
             return false;
         }
 
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CMS, $this->id);
-
         return true;
     }
 
@@ -300,7 +298,6 @@ class CMSCore extends ObjectModel
         
 
         if (parent::update($nullValues)) {
-            UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CMS, $this->id);
             return $this->cleanPositions($this->id_cms_category);
         }
 
@@ -347,8 +344,6 @@ class CMSCore extends ObjectModel
         if ('TB_PAGE_CACHE_ENABLED') {
             PageCache::invalidateEntity('cms', $this->id);
         }
-
-        UrlRewrite::deleteUrlRewrite(UrlRewrite::ENTITY_CMS, $this->id);
 
         if (parent::delete()) {
             return $this->cleanPositions($this->id_cms_category);

@@ -260,7 +260,12 @@ class ConfigurationCore extends ObjectModel
     const ROUTE_MANUFACTURER_RULE = 'PS_ROUTE_manufacturer_rule';
     const ROUTE_CMS_RULE = 'PS_ROUTE_cms_rule';
     const ROUTE_CMS_CATEGORY_RULE = 'PS_ROUTE_cms_category_rule';
-
+    const DISABLE_OVERRIDES = 'PS_DISABLE_OVERRIDES';
+    const DISABLE_NON_NATIVE_MODULE = 'PS_DISABLE_NON_NATIVE_MODULE';
+    const CUSTOMCODE_METAS = 'TB_CUSTOMCODE_METAS';
+    const CUSTOMCODE_CSS = 'TB_CUSTOMCODE_CSS';
+    const CUSTOMCODE_JS = 'TB_CUSTOMCODE_JS';
+    const CUSTOMCODE_ORDERCONF_JS = 'TB_CUSTOMCODE_ORDERCONF_JS';
     // @codingStandardsIgnoreStart
     /**
      * @see ObjectModel::$definition
@@ -313,7 +318,7 @@ class ConfigurationCore extends ObjectModel
             return $loaded;
         }
 
-        if (isset(self::$_cache) && isset(self::$_cache[self::$definition['table']]) && count(self::$_cache[self::$definition['table']])) {
+        if (isset(static::$_cache) && isset(static::$_cache[static::$definition['table']]) && count(static::$_cache[static::$definition['table']])) {
             $loaded = true;
 
             return $loaded;
@@ -332,7 +337,7 @@ class ConfigurationCore extends ObjectModel
      */
     public static function clearConfigurationCacheForTesting()
     {
-        self::$_cache = [];
+        static::$_cache = [];
     }
 
     /**
@@ -367,10 +372,10 @@ class ConfigurationCore extends ObjectModel
         }
 
         // If conf if not initialized, try manual query
-        if (!isset(self::$_cache[self::$definition['table']])) {
+        if (!isset(static::$_cache[static::$definition['table']])) {
             Configuration::loadConfiguration();
-            if (!self::$_cache[self::$definition['table']]) {
-                return Db::getInstance()->getValue('SELECT `value` FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` WHERE `name` = "'.pSQL($key).'"');
+            if (!static::$_cache[static::$definition['table']]) {
+                return Db::getInstance()->getValue('SELECT `value` FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'` WHERE `name` = "'.pSQL($key).'"');
             }
         }
         $idLang = (int) $idLang;
@@ -381,16 +386,16 @@ class ConfigurationCore extends ObjectModel
             $idShopGroup = Shop::getContextShopGroupID(true);
         }
 
-        if (!isset(self::$_cache[self::$definition['table']][$idLang])) {
+        if (!isset(static::$_cache[static::$definition['table']][$idLang])) {
             $idLang = 0;
         }
 
         if ($idShop && Configuration::hasKey($key, $idLang, null, $idShop)) {
-            return self::$_cache[self::$definition['table']][$idLang]['shop'][$idShop][$key];
+            return static::$_cache[static::$definition['table']][$idLang]['shop'][$idShop][$key];
         } elseif ($idShopGroup && Configuration::hasKey($key, $idLang, $idShopGroup)) {
-            return self::$_cache[self::$definition['table']][$idLang]['group'][$idShopGroup][$key];
+            return static::$_cache[static::$definition['table']][$idLang]['group'][$idShopGroup][$key];
         } elseif (Configuration::hasKey($key, $idLang)) {
-            return self::$_cache[self::$definition['table']][$idLang]['global'][$key];
+            return static::$_cache[static::$definition['table']][$idLang]['global'][$key];
         }
 
         return false;
@@ -404,18 +409,18 @@ class ConfigurationCore extends ObjectModel
      */
     public static function loadConfiguration()
     {
-        self::$_cache[self::$definition['table']] = [];
+        static::$_cache[static::$definition['table']] = [];
 
         $sql = 'SELECT c.`name`, cl.`id_lang`, IF(cl.`id_lang` IS NULL, c.`value`, cl.`value`) AS value, c.id_shop_group, c.id_shop
-                FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` c
-                LEFT JOIN `'._DB_PREFIX_.bqSQL(self::$definition['table']).'_lang` cl ON (c.`'.bqSQL(self::$definition['primary']).'` = cl.`'.bqSQL(self::$definition['primary']).'`)';
+                FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'` c
+                LEFT JOIN `'._DB_PREFIX_.bqSQL(static::$definition['table']).'_lang` cl ON (c.`'.bqSQL(static::$definition['primary']).'` = cl.`'.bqSQL(static::$definition['primary']).'`)';
         $db = Db::getInstance();
         $rows = (array) $db->executeS($sql);
         foreach ($rows as $row) {
             $lang = ($row['id_lang']) ? $row['id_lang'] : 0;
-            self::$types[$row['name']] = ($lang) ? 'lang' : 'normal';
-            if (!isset(self::$_cache[self::$definition['table']][$lang])) {
-                self::$_cache[self::$definition['table']][$lang] = [
+            static::$types[$row['name']] = ($lang) ? 'lang' : 'normal';
+            if (!isset(static::$_cache[static::$definition['table']][$lang])) {
+                static::$_cache[static::$definition['table']][$lang] = [
                     'global' => [],
                     'group'  => [],
                     'shop'   => [],
@@ -423,11 +428,11 @@ class ConfigurationCore extends ObjectModel
             }
 
             if ($row['id_shop']) {
-                self::$_cache[self::$definition['table']][$lang]['shop'][$row['id_shop']][$row['name']] = $row['value'];
+                static::$_cache[static::$definition['table']][$lang]['shop'][$row['id_shop']][$row['name']] = $row['value'];
             } elseif ($row['id_shop_group']) {
-                self::$_cache[self::$definition['table']][$lang]['group'][$row['id_shop_group']][$row['name']] = $row['value'];
+                static::$_cache[static::$definition['table']][$lang]['group'][$row['id_shop_group']][$row['name']] = $row['value'];
             } else {
-                self::$_cache[self::$definition['table']][$lang]['global'][$row['name']] = $row['value'];
+                static::$_cache[static::$definition['table']][$lang]['global'][$row['name']] = $row['value'];
             }
         }
     }
@@ -454,18 +459,18 @@ class ConfigurationCore extends ObjectModel
         $idLang = (int) $idLang;
 
         if ($idShop) {
-            return isset(self::$_cache[self::$definition['table']][$idLang]['shop'][$idShop])
-                && (isset(self::$_cache[self::$definition['table']][$idLang]['shop'][$idShop][$key])
-                    || array_key_exists($key, self::$_cache[self::$definition['table']][$idLang]['shop'][$idShop]));
+            return isset(static::$_cache[static::$definition['table']][$idLang]['shop'][$idShop])
+                && (isset(static::$_cache[static::$definition['table']][$idLang]['shop'][$idShop][$key])
+                    || array_key_exists($key, static::$_cache[static::$definition['table']][$idLang]['shop'][$idShop]));
         } elseif ($idShopGroup) {
-            return isset(self::$_cache[self::$definition['table']][$idLang]['group'][$idShopGroup])
-                && (isset(self::$_cache[self::$definition['table']][$idLang]['group'][$idShopGroup][$key])
-                    || array_key_exists($key, self::$_cache[self::$definition['table']][$idLang]['group'][$idShopGroup]));
+            return isset(static::$_cache[static::$definition['table']][$idLang]['group'][$idShopGroup])
+                && (isset(static::$_cache[static::$definition['table']][$idLang]['group'][$idShopGroup][$key])
+                    || array_key_exists($key, static::$_cache[static::$definition['table']][$idLang]['group'][$idShopGroup]));
         }
 
-        return isset(self::$_cache[self::$definition['table']][$idLang]['global'])
-            && (isset(self::$_cache[self::$definition['table']][$idLang]['global'][$key])
-                || array_key_exists($key, self::$_cache[self::$definition['table']][$idLang]['global']));
+        return isset(static::$_cache[static::$definition['table']][$idLang]['global'])
+            && (isset(static::$_cache[static::$definition['table']][$idLang]['global'][$key])
+                || array_key_exists($key, static::$_cache[static::$definition['table']][$idLang]['global']));
     }
 
     /**
@@ -622,20 +627,20 @@ class ConfigurationCore extends ObjectModel
                 if (!$lang) {
                     // Update config not linked to lang
                     $result &= Db::getInstance()->update(
-                        self::$definition['table'], [
+                        static::$definition['table'], [
                         'value'    => pSQL($value, $html),
                         'date_upd' => date('Y-m-d H:i:s'),
                     ], '`name` = \''.pSQL($key).'\''.Configuration::sqlRestriction($idShopGroup, $idShop), 1, true
                     );
                 } else {
                     // Update multi lang
-                    $sql = 'UPDATE `'._DB_PREFIX_.bqSQL(self::$definition['table']).'_lang` cl
+                    $sql = 'UPDATE `'._DB_PREFIX_.bqSQL(static::$definition['table']).'_lang` cl
                             SET cl.value = \''.pSQL($value, $html).'\',
                                 cl.date_upd = NOW()
                             WHERE cl.id_lang = '.(int) $lang.'
-                                AND cl.`'.bqSQL(self::$definition['primary']).'` = (
-                                    SELECT c.`'.bqSQL(self::$definition['primary']).'`
-                                    FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'` c
+                                AND cl.`'.bqSQL(static::$definition['primary']).'` = (
+                                    SELECT c.`'.bqSQL(static::$definition['primary']).'`
+                                    FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'` c
                                     WHERE c.name = \''.pSQL($key).'\''
                         .Configuration::sqlRestriction($idShopGroup, $idShop)
                         .')';
@@ -653,14 +658,14 @@ class ConfigurationCore extends ObjectModel
                         'date_add'      => $now,
                         'date_upd'      => $now,
                     ];
-                    $result &= Db::getInstance()->insert(self::$definition['table'], $data, true);
+                    $result &= Db::getInstance()->insert(static::$definition['table'], $data, true);
                     $configID = Db::getInstance()->Insert_ID();
                 }
 
                 if ($lang) {
                     $result &= Db::getInstance()->insert(
-                        self::$definition['table'].'_lang', [
-                            self::$definition['primary'] => $configID,
+                        static::$definition['table'].'_lang', [
+                            static::$definition['primary'] => $configID,
                             'id_lang'                    => (int) $lang,
                             'value'                      => pSQL($value, $html),
                             'date_upd'                   => date('Y-m-d H:i:s'),
@@ -718,8 +723,8 @@ class ConfigurationCore extends ObjectModel
             $idShopGroup = Shop::getContextShopGroupID(true);
         }
 
-        $sql = 'SELECT `'.bqSQL(self::$definition['primary']).'`
-                FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'`
+        $sql = 'SELECT `'.bqSQL(static::$definition['primary']).'`
+                FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'`
                 WHERE name = \''.pSQL($key).'\'
                 '.Configuration::sqlRestriction($idShopGroup, $idShop);
 
@@ -756,11 +761,11 @@ class ConfigurationCore extends ObjectModel
 
         foreach ($values as $lang => $value) {
             if ($idShop) {
-                self::$_cache[self::$definition['table']][$lang]['shop'][$idShop][$key] = $value;
+                static::$_cache[static::$definition['table']][$lang]['shop'][$idShop][$key] = $value;
             } elseif ($idShopGroup) {
-                self::$_cache[self::$definition['table']][$lang]['group'][$idShopGroup][$key] = $value;
+                static::$_cache[static::$definition['table']][$lang]['group'][$idShopGroup][$key] = $value;
             } else {
-                self::$_cache[self::$definition['table']][$lang]['global'][$key] = $value;
+                static::$_cache[static::$definition['table']][$lang]['global'][$key] = $value;
             }
         }
     }
@@ -783,21 +788,21 @@ class ConfigurationCore extends ObjectModel
 
         $result = Db::getInstance()->execute(
             '
-        DELETE FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'_lang`
-        WHERE `'.bqSQL(self::$definition['primary']).'` IN (
-            SELECT `'.bqSQL(self::$definition['primary']).'`
-            FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'`
+        DELETE FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'_lang`
+        WHERE `'.bqSQL(static::$definition['primary']).'` IN (
+            SELECT `'.bqSQL(static::$definition['primary']).'`
+            FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'`
             WHERE `name` = "'.pSQL($key).'"
         )'
         );
 
         $result2 = Db::getInstance()->execute(
             '
-        DELETE FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'`
+        DELETE FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'`
         WHERE `name` = "'.pSQL($key).'"'
         );
 
-        self::$_cache[self::$definition['table']] = null;
+        static::$_cache[static::$definition['table']] = null;
 
         return ($result && $result2);
     }
@@ -825,16 +830,16 @@ class ConfigurationCore extends ObjectModel
         $id = Configuration::getIdByName($key, $idShopGroup, $idShop);
         Db::getInstance()->execute(
             '
-        DELETE FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'`
-        WHERE `'.bqSQL(self::$definition['primary']).'` = '.(int) $id
+        DELETE FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'`
+        WHERE `'.bqSQL(static::$definition['primary']).'` = '.(int) $id
         );
         Db::getInstance()->execute(
             '
-        DELETE FROM `'._DB_PREFIX_.bqSQL(self::$definition['table']).'_lang`
-        WHERE `'.bqSQL(self::$definition['primary']).'` = '.(int) $id
+        DELETE FROM `'._DB_PREFIX_.bqSQL(static::$definition['table']).'_lang`
+        WHERE `'.bqSQL(static::$definition['primary']).'` = '.(int) $id
         );
 
-        self::$_cache[self::$definition['table']] = null;
+        static::$_cache[static::$definition['table']] = null;
     }
 
     /**
@@ -876,7 +881,7 @@ class ConfigurationCore extends ObjectModel
      */
     public static function isLangKey($key)
     {
-        return (isset(self::$types[$key]) && self::$types[$key] == 'lang') ? true : false;
+        return (isset(static::$types[$key]) && static::$types[$key] == 'lang') ? true : false;
     }
 
     /**

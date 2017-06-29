@@ -233,8 +233,8 @@ class ManufacturerCore extends ObjectModel
      */
     public static function getNameById($idManufacturer)
     {
-        if (!isset(self::$cacheName[$idManufacturer])) {
-            self::$cacheName[$idManufacturer] = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+        if (!isset(static::$cacheName[$idManufacturer])) {
+            static::$cacheName[$idManufacturer] = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
                 '
 				SELECT `name`
 				FROM `'._DB_PREFIX_.'manufacturer`
@@ -243,7 +243,7 @@ class ManufacturerCore extends ObjectModel
             );
         }
 
-        return self::$cacheName[$idManufacturer];
+        return static::$cacheName[$idManufacturer];
     }
 
     /**
@@ -501,8 +501,6 @@ class ManufacturerCore extends ObjectModel
             PageCache::invalidateEntity('manufacturer', $this->id);
         }
 
-        UrlRewrite::deleteUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
-
         if (parent::delete()) {
             CartRule::cleanProductRuleIntegrity('manufacturers', $this->id);
 
@@ -625,23 +623,6 @@ class ManufacturerCore extends ObjectModel
     }
 
     /**
-     * @param bool $autoDate
-     * @param bool $nullValues
-     *
-     * @return bool Indicates whether saving succeeded
-     */
-    public function add($autoDate = true, $nullValues = false)
-    {
-        if (parent::add($autoDate, $nullValues)) {
-            UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
      * @param null $nullValues
      *
      * @return bool Indicates whether updating succeeded
@@ -652,11 +633,6 @@ class ManufacturerCore extends ObjectModel
             PageCache::invalidateEntity('manufacturer', $this->id);
         }
 
-        $return = parent::update($nullValues);
-
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_MANUFACTURER, $this->id);
-
-        return $return;
-
+        return parent::update($nullValues);
     }
 }

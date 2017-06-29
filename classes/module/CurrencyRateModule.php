@@ -53,23 +53,63 @@ abstract class CurrencyRateModuleCore extends Module
      *                     ```
      *                     Returns `false`  if there were problems with retrieving the exchange rates
      *
-     *
      * @since 1.0.0
-     * @version 1.0.0 Initial version
+     * @deprecated 1.0.1 Sorry, it doesn't work as it should :(
+     *             Please avoid!
      */
-    abstract public function hookCurrencyRates($baseCurrency);
+    public function hookCurrencyRates($baseCurrency)
+    {
+        return false;
+    }
+
+    /**
+     * @param array $params It contains the following values:
+     *                      - `currencies`: `array` of `string`s
+     *                        Uppercase currency codes
+     *                        Only codes that have been added to the
+     *                        `currencies` array should be filled.
+     *                        The module will have to accept all the currencies it provides
+     *                        as a base currency, too. So if it provides `EUR` and `USD`, it should be able to calculate
+     *                        with both `EUR` or `USD` as a base currency and find the exchange rate for the other.
+     *                      - `baseCurrency`: `string`
+     *                        Uppercase base currency code
+     *
+     * @return false|array Associate array with all supported and requested currency codes as key (uppercase) and the actual
+     *                     amounts as values (floats - be as accurate as you like), e.g.:
+     *                     ```php
+     *                     [
+     *                         'EUR' => 1.233434,
+     *                         'USD' => 1.343,
+     *                     ]
+     *                     ```
+     *                     Sets a currency as `false` if there were problems with retrieving the exchange rates.
+     *                     This will cause thirty bees to not further process the currency. As of 1.0.x thirty bees will not request
+     *                     other modules to provide the missing rates. This might change in the future.
+     *
+     * @since 1.0.1 Introduced as a replacement for `hookCurrencyRates`. All action modules should be prefixed with `action`
+     */
+    abstract public function hookActionRetrieveCurrencyRates($params);
 
     /**
      * @param string $fromCurrency From currency code
      * @param string $toCurrency   To currency code
      *
      * @return false|float
+     *
+     * @since 1.0.0
+     * @deprecated 1.0.1 Sorry, it doesn't work as it should :(
+     *             Please avoid!
      */
-    abstract public function hookRate($fromCurrency, $toCurrency);
+    public function hookRate($fromCurrency, $toCurrency)
+    {
+        return false;
+    }
 
     /**
      * @return array Supported currencies
      *               An array with uppercase currency codes (ISO 4217)
+     *
+     * @since 1.0.0
      */
     abstract public function getSupportedCurrencies();
 
@@ -77,6 +117,8 @@ abstract class CurrencyRateModuleCore extends Module
      * Install this module and scan currencies
      *
      * @return bool Indicates whether the module was successfully installed
+     *
+     * @since 1.0.0
      */
     public function install()
     {
@@ -84,7 +126,7 @@ abstract class CurrencyRateModuleCore extends Module
             return false;
         }
 
-        self::scanMissingCurrencyRateModules();
+        static::scanMissingCurrencyRateModules(false, $this->name);
 
         return true;
     }
@@ -151,8 +193,9 @@ abstract class CurrencyRateModuleCore extends Module
      * @return false|array Result
      *
      * @since 1.0.0
+     * @since 1.0.1 Extra module name
      */
-    public static function scanMissingCurrencyRateModules($baseCurrency = false)
+    public static function scanMissingCurrencyRateModules($baseCurrency = false, $extraModule = null)
     {
         if (!$baseCurrency) {
             $defaultCurrency = Currency::getDefaultCurrency();
@@ -162,7 +205,11 @@ abstract class CurrencyRateModuleCore extends Module
             $baseCurrency = $defaultCurrency->iso_code;
         }
 
-        $registeredModules = self::getCurrencyRateInfo();
+        if ($extraModule) {
+            $extraModule = Module::getInstanceByName($extraModule);
+        }
+
+        $registeredModules = static::getCurrencyRateInfo();
         foreach ($registeredModules as $currencyCode => &$module) {
             if (!Validate::isLoadedObject($module)) {
                 $idCurrency = Currency::getIdByIsoCode($currencyCode);
@@ -171,12 +218,20 @@ abstract class CurrencyRateModuleCore extends Module
                     continue;
                 }
 
-                $availableModuleName = self::providesExchangeRate($currency->iso_code, $baseCurrency, true);
+                $availableModuleName = static::providesExchangeRate($currency->iso_code, $baseCurrency, true);
+                if (!$availableModuleName && Validate::isLoadedObject($extraModule)) {
+                    /** @var CurrencyRateModule $extraModule */
+                    $providedCurrencies = $extraModule->getSupportedCurrencies();
+                    if (in_array($baseCurrency, $providedCurrencies) && in_array($currencyCode, $providedCurrencies)) {
+                        $availableModuleName = $extraModule->name;
+                    }
+                }
+
                 if ($availableModuleName) {
                     $availableModule = Module::getInstanceByName($availableModuleName);
                     if (Validate::isLoadedObject($availableModule)) {
                         $module['id_module'] = $availableModule->id;
-                        self::setModule($currency->id, $availableModule->id);
+                        static::setModule($currency->id, $availableModule->id);
                     }
                 }
             }
@@ -201,7 +256,7 @@ abstract class CurrencyRateModuleCore extends Module
         $sql->leftJoin('hook', 'h', 'hm.`id_hook` = h.`id_hook`');
         $sql->innerJoin('module_shop', 'ms', 'm.`id_module` = ms.`id_module`');
         $sql->where('ms.`id_shop` = '.(int) Context::getContext()->shop->id);
-        $sql->where('h.`name` = \'currencyRates\'');
+        $sql->where('h.`name` = \'actionRetrieveCurrencyRates\'');
 
         return Db::getInstance()->executeS($sql);
     }
@@ -217,7 +272,7 @@ abstract class CurrencyRateModuleCore extends Module
     public static function getCurrencyRateModules()
     {
         $modules = [];
-        $installedModules = self::getInstalledCurrencyRateModules();
+        $installedModules = static::getInstalledCurrencyRateModules();
         foreach ($installedModules as $moduleInfo) {
             /** @var CurrencyRateModule $module */
             $module = Module::getInstanceById($moduleInfo['id_module']);
@@ -235,6 +290,8 @@ abstract class CurrencyRateModuleCore extends Module
      * @param bool        $justOne Search for just one module
      *
      * @return array|string
+     *
+     * @since 1.0.0
      */
     public static function providesExchangeRate($to, $from = null, $justOne = false)
     {
@@ -243,7 +300,7 @@ abstract class CurrencyRateModuleCore extends Module
             $from = Tools::strtoupper($fromCurrency->iso_code);
         }
 
-        $modules = self::getCurrencyRateModules();
+        $modules = static::getCurrencyRateModules();
         if ($justOne) {
             $providingModules = '';
         } else {
@@ -268,6 +325,8 @@ abstract class CurrencyRateModuleCore extends Module
      * @param string $selected   Selected module
      *
      * @return array|false
+     *
+     * @since 1.0.0
      */
     public static function getServices($idCurrency, $selected)
     {
@@ -281,7 +340,7 @@ abstract class CurrencyRateModuleCore extends Module
             return false;
         }
 
-        $availableServices = self::providesExchangeRate($currency->iso_code, $defaultCurrency->iso_code, false);
+        $availableServices = static::providesExchangeRate($currency->iso_code, $defaultCurrency->iso_code, false);
 
         $serviceModules = [];
         foreach ($availableServices as $service) {
@@ -301,6 +360,13 @@ abstract class CurrencyRateModuleCore extends Module
         return $serviceModules;
     }
 
+    /**
+     * @param $idCurrency
+     *
+     * @return false|null|string
+     *
+     * @since 1.0.0
+     */
     protected static function getModuleForCurrency($idCurrency)
     {
         $sql = new DbQuery();
@@ -316,25 +382,23 @@ abstract class CurrencyRateModuleCore extends Module
      *
      * @param int $idCurrency
      * @param int $idModule
+     *
+     * @since 1.0.0
      */
     public static function setModule($idCurrency, $idModule)
     {
-        if (Db::getInstance()->getValue('SELECT `id_currency` FROM `'._DB_PREFIX_.'currency_module` WHERE `id_currency` = '.(int) $idCurrency)) {
-            Db::getInstance()->update(
-                'currency_modules',
-                [
-                    'id_module' => (int) $idModule,
-                ],
-                '`id_currency` = '.(int) $idCurrency
-            );
-        } else {
-            Db::getInstance()->insert(
-                'currency_module',
-                [
-                    'id_currency' => (int) $idCurrency,
-                    'id_module'   => (int) $idModule,
-                ]
-            );
-        }
+        Db::getInstance()->delete(
+            'currency_module',
+            '`id_currency` = '.(int) $idCurrency,
+            1,
+            false
+        );
+        Db::getInstance()->insert(
+            'currency_module',
+            [
+                'id_currency' => (int) $idCurrency,
+                'id_module'   => (int) $idModule,
+            ]
+        );
     }
 }

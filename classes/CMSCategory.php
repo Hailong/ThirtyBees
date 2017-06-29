@@ -339,8 +339,8 @@ class CMSCategoryCore extends ObjectModel
             return false;
         }
 
-        if (isset(self::$_links[$idCmsCategory.'-'.$idLang])) {
-            return self::$_links[$idCmsCategory.'-'.$idLang];
+        if (isset(static::$_links[$idCmsCategory.'-'.$idLang])) {
+            return static::$_links[$idCmsCategory.'-'.$idLang];
         }
 
         $result = Db::getInstance()->getRow(
@@ -351,7 +351,7 @@ class CMSCategoryCore extends ObjectModel
 		WHERE `id_lang` = '.(int) $idLang.'
 		AND c.`id_cms_category` = '.(int) $idCmsCategory
         );
-        self::$_links[$idCmsCategory.'-'.$idLang] = $result['link_rewrite'];
+        static::$_links[$idCmsCategory.'-'.$idLang] = $result['link_rewrite'];
 
         return $result['link_rewrite'];
     }
@@ -455,8 +455,6 @@ class CMSCategoryCore extends ObjectModel
         $ret = parent::add($autodate, $nullValues);
         $this->cleanPositions($this->id_parent);
 
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CMS_CATEGORY, $this->id);
-
         return $ret;
     }
 
@@ -544,9 +542,6 @@ class CMSCategoryCore extends ObjectModel
             }
         }
         $return = parent::update($nullValues);
-        
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CMS_CATEGORY, $this->id);
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_CMS);
 
         return $return;
     }
@@ -683,8 +678,6 @@ class CMSCategoryCore extends ObjectModel
         if ('TB_PAGE_CACHE_ENABLED') {
             PageCache::invalidateEntity('cms', $this->id);
         }
-
-        UrlRewrite::deleteUrlRewrite(UrlRewrite::ENTITY_CMS_CATEGORY, $this->id);
 
         $this->clearCache();
 

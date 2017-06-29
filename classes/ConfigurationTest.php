@@ -42,26 +42,24 @@ class ConfigurationTestCore
      * @since 1.0.0 Renamed from $test_files
      */
     public static $testFiles = [
-        '/cache/smarty/compile/index.php',
-        '/classes/log/index.php',
-        '/classes/cache/index.php',
-        '/config/index.php',
+        '/cache/smarty/compile',
+        '/classes/log',
+        '/classes/cache',
+        '/config',
         '/controllers/admin/AdminLoginController.php',
         '/vendor/autoload.php',
-        '/css/index.php',
-        '/download/index.php',
+        '/css',
+        '/download',
         '/img/404.gif',
         '/js/tools.js',
         '/js/jquery/plugins/fancybox/jquery.fancybox.js',
         '/localization/fr.xml',
-        '/mails/index.php',
-        '/modules/index.php',
-        '/override/controllers/front/index.php',
+        '/mails',
+        '/modules',
         '/pdf/order-return.tpl',
         '/themes/community-theme-default/css/global.css',
-        '/translations/export/index.php',
+        '/translations/export',
         '/webservice/dispatcher.php',
-        '/index.php',
     ];
 
     /**
@@ -387,6 +385,8 @@ class ConfigurationTestCore
     }
 
     /**
+     * Test if directory is writable
+     *
      * @param string $dir        Directory path, absolute or relative
      * @param bool   $recursive
      * @param null   $fullReport

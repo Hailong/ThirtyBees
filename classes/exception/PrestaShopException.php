@@ -36,6 +36,34 @@
  */
 class PrestaShopExceptionCore extends Exception
 {
+    protected $trace;
+
+    /**
+     * PrestaShopExceptionCore constructor.
+     *
+     * @param string         $message
+     * @param int            $code
+     * @param Exception|null $previous
+     * @param array|null     $customTrace
+     */
+    public function __construct($message = "", $code = 0, Exception $previous = null, $customTrace = null, $file = null, $line = null)
+    {
+        parent::__construct($message, $code, $previous);
+
+        if (!$customTrace) {
+            $this->trace = $this->getTrace();
+        } else {
+            $this->trace = $customTrace;
+        }
+
+        if ($file) {
+            $this->file = $file;
+        }
+        if ($line) {
+            $this->line = $line;
+        }
+    }
+
     /**
      * This method acts like an error handler, if dev mode is on, display the error else use a better silent way
      *
@@ -47,7 +75,7 @@ class PrestaShopExceptionCore extends Exception
         // FIXME 1.0.1: Improve the error page
         header('HTTP/1.1 500 Internal Server Error');
 
-        if (_PS_MODE_DEV_ || defined('_PS_ADMIN_DIR_') || getenv('CI')) {
+        if (_PS_MODE_DEV_ || getenv('CI')) {
             // Display error message
             echo '<style>
 				#psException{font-family: Verdana; font-size: 14px}
@@ -64,11 +92,11 @@ class PrestaShopExceptionCore extends Exception
             echo '<h2>['.get_class($this).']</h2>';
             echo $this->getExtendedMessage();
 
-            echo $this->displayFileDebug($this->getFile(), $this->getLine());
+            echo $this->displayFileDebug($this->file, $this->line);
 
             // Display debug backtrace
             echo '<ul>';
-            foreach ($this->getTrace() as $id => $trace) {
+            foreach ($this->trace as $id => $trace) {
                 $relativeFile = (isset($trace['file'])) ? ltrim(str_replace([_PS_ROOT_DIR_, '\\'], ['', '/'], $trace['file']), '/') : '';
                 $currentLine = (isset($trace['line'])) ? $trace['line'] : '';
                 if (defined('_PS_ADMIN_DIR_')) {
@@ -99,10 +127,10 @@ class PrestaShopExceptionCore extends Exception
             $markdown .= '## '.get_class($this).'  ';
             $markdown .= $this->getExtendedMessageMarkdown();
 
-            $markdown .= $this->displayFileDebug($this->getFile(), $this->getLine(), null, true);
+            $markdown .= $this->displayFileDebug($this->file, $this->line, null, true);
 
             // Display debug backtrace
-            foreach ($this->getTrace() as $id => $trace) {
+            foreach ($this->trace as $id => $trace) {
                 $relativeFile = (isset($trace['file'])) ? ltrim(str_replace([_PS_ROOT_DIR_, '\\'], ['', '/'], $trace['file']), '/') : '';
                 $currentLine = (isset($trace['line'])) ? $trace['line'] : '';
                 if (defined('_PS_ADMIN_DIR_')) {
@@ -123,7 +151,10 @@ class PrestaShopExceptionCore extends Exception
                     $markdown .= $this->displayArgsDebug($trace['args'], $id, true);
                 }
             }
-            echo Encryptor::getInstance()->encrypt($markdown);
+            header('Content-Type: text/html');
+            $markdown = Encryptor::getInstance()->encrypt($markdown);
+
+            echo $this->displayErrorTemplate(_PS_ROOT_DIR_.'/error500.phtml', ['markdown' => $markdown]);
         }
         // Log the error to the disk
         $this->logError();
@@ -284,5 +315,33 @@ class PrestaShopExceptionCore extends Exception
             $this->getLine(),
             ltrim(str_replace([_PS_ROOT_DIR_, '\\'], ['', '/'], $this->getFile()), '/')
         );
+    }
+
+    /**
+     * Display a phtml template file
+     *
+     * @param string $file
+     * @param array  $params
+     *
+     * @return string Content
+     *
+     * @since 1.0.0
+     */
+    protected function displayErrorTemplate($file, $params = [])
+    {
+        foreach ($params as $name => $param) {
+            $$name = $param;
+        }
+
+        ob_start();
+
+        include($file);
+
+        $content = ob_get_contents();
+        if (ob_get_level() && ob_get_length() > 0) {
+            ob_end_clean();
+        }
+
+        return $content;
     }
 }

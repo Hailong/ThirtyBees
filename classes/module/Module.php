@@ -28,6 +28,8 @@
  * @license   http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  *  PrestaShop is an internationally registered trademark & property of PrestaShop SA
  */
+use vierbergenlars\SemVer\expression as Expression;
+use vierbergenlars\SemVer\version as Version;
 
 /**
  * Class ModuleCore
@@ -36,7 +38,6 @@
  */
 abstract class ModuleCore
 {
-    const CACHE_FILE_MODULES_LIST = '/config/xml/modules_list.xml';
     const CACHE_FILE_TAB_MODULES_LIST = '/config/xml/tab_modules_list.xml';
     // @codingStandardsIgnoreStart
     /** @var array used by AdminTab to determine which lang file to use (admin.php or module lang file) */
@@ -198,10 +199,10 @@ abstract class ModuleCore
         // @codingStandardsIgnoreStart
         if ($this->name != null) {
             // If cache is not generated, we generate it
-            if (self::$modules_cache == null && !is_array(self::$modules_cache)) {
+            if (static::$modules_cache == null && !is_array(static::$modules_cache)) {
                 $idShop = (Validate::isLoadedObject($this->context->shop) ? $this->context->shop->id : Configuration::get('PS_SHOP_DEFAULT'));
 
-                self::$modules_cache = [];
+                static::$modules_cache = [];
                 // Join clause is done to check if the module is activated in current shop context
                 $result = Db::getInstance()->executeS(
                     '
@@ -215,17 +216,17 @@ abstract class ModuleCore
 				FROM `'._DB_PREFIX_.'module` m'
                 );
                 foreach ($result as $row) {
-                    self::$modules_cache[$row['name']] = $row;
-                    self::$modules_cache[$row['name']]['active'] = ($row['mshop'] > 0) ? 1 : 0;
+                    static::$modules_cache[$row['name']] = $row;
+                    static::$modules_cache[$row['name']]['active'] = ($row['mshop'] > 0) ? 1 : 0;
                 }
             }
 
             // We load configuration from the cache
-            if (isset(self::$modules_cache[$this->name])) {
-                if (isset(self::$modules_cache[$this->name]['id_module'])) {
-                    $this->id = self::$modules_cache[$this->name]['id_module'];
+            if (isset(static::$modules_cache[$this->name])) {
+                if (isset(static::$modules_cache[$this->name]['id_module'])) {
+                    $this->id = static::$modules_cache[$this->name]['id_module'];
                 }
-                foreach (self::$modules_cache[$this->name] as $key => $value) {
+                foreach (static::$modules_cache[$this->name] as $key => $value) {
                     if (property_exists($this, $key)) {
                         $this->{$key} = $value;
                     }
@@ -233,7 +234,7 @@ abstract class ModuleCore
                 $this->_path = __PS_BASE_URI__.'modules/'.$this->name.'/';
             }
             if (!$this->context->controller instanceof Controller) {
-                self::$modules_cache = null;
+                static::$modules_cache = null;
             }
             $this->local_path = _PS_MODULE_DIR_.$this->name.'/';
         }
@@ -249,7 +250,7 @@ abstract class ModuleCore
     public static function getBatchMode()
     {
         // @codingStandardsIgnoreStart
-        return self::$_batch_mode;
+        return static::$_batch_mode;
         // @codingStandardsIgnoreEnd
     }
 
@@ -264,7 +265,7 @@ abstract class ModuleCore
     public static function setBatchMode($value)
     {
         // @codingStandardsIgnoreStart
-        self::$_batch_mode = (bool) $value;
+        static::$_batch_mode = (bool) $value;
         // @codingStandardsIgnoreEnd
     }
 
@@ -274,12 +275,12 @@ abstract class ModuleCore
      */
     public static function processDeferedFuncCall()
     {
-        self::setBatchMode(false);
+        static::setBatchMode(false);
         // @codingStandardsIgnoreStart
-        foreach (self::$_defered_func_call as $funcCall) {
+        foreach (static::$_defered_func_call as $funcCall) {
             call_user_func_array($funcCall[0], $funcCall[1]);
         }
-        self::$_defered_func_call = [];
+        static::$_defered_func_call = [];
         // @codingStandardsIgnoreEnd
     }
 
@@ -291,14 +292,14 @@ abstract class ModuleCore
      */
     public static function processDeferedClearCache()
     {
-        self::setBatchMode(false);
+        static::setBatchMode(false);
 
         // @codingStandardsIgnoreStart
-        foreach (self::$_defered_clearCache as $clearCacheArray) {
-            self::_deferedClearCache($clearCacheArray[0], $clearCacheArray[1], $clearCacheArray[2]);
+        foreach (static::$_defered_clearCache as $clearCacheArray) {
+            static::_deferedClearCache($clearCacheArray[0], $clearCacheArray[1], $clearCacheArray[2]);
         }
 
-        self::$_defered_clearCache = [];
+        static::$_defered_clearCache = [];
         // @codingStandardsIgnoreEnd
     }
 
@@ -355,7 +356,7 @@ abstract class ModuleCore
 
         // Init cache upgrade details
         // @codingStandardsIgnoreStart
-        self::$modules_cache[$module->name]['upgrade'] = [
+        static::$modules_cache[$module->name]['upgrade'] = [
             'success'             => false, // bool to know if upgrade succeed or not
             'available_upgrade'   => 0, // Number of available module before any upgrade
             'number_upgraded'     => 0, // Number of upgrade done
@@ -407,7 +408,7 @@ abstract class ModuleCore
      */
     public static function needUpgrade($module)
     {
-        self::$modules_cache[$module->name]['upgrade']['upgraded_from'] = $module->database_version;
+        static::$modules_cache[$module->name]['upgrade']['upgraded_from'] = $module->database_version;
         // Check the version of the module with the registered one and look if any upgrade file exist
         if (Tools::version_compare($module->version, $module->database_version, '>')) {
             $oldVersion = $module->database_version;
@@ -440,7 +441,7 @@ abstract class ModuleCore
             return false;
         }
 
-        if (!isset(self::$_INSTANCE[$moduleName])) {
+        if (!isset(static::$_INSTANCE[$moduleName])) {
             if (!Tools::file_exists_no_cache(_PS_MODULE_DIR_.$moduleName.'/'.$moduleName.'.php')) {
                 return false;
             }
@@ -448,7 +449,7 @@ abstract class ModuleCore
             return Module::coreLoadModule($moduleName);
         }
 
-        return self::$_INSTANCE[$moduleName];
+        return static::$_INSTANCE[$moduleName];
     }
 
     /**
@@ -486,12 +487,12 @@ abstract class ModuleCore
             $override = $moduleName.'Override';
 
             if (class_exists($override, false)) {
-                $r = self::$_INSTANCE[$moduleName] = Adapter_ServiceLocator::get($override);
+                $r = static::$_INSTANCE[$moduleName] = Adapter_ServiceLocator::get($override);
             }
         }
 
         if (!$r && class_exists($moduleName, false)) {
-            $r = self::$_INSTANCE[$moduleName] = Adapter_ServiceLocator::get($moduleName);
+            $r = static::$_INSTANCE[$moduleName] = Adapter_ServiceLocator::get($moduleName);
         }
 
         // @codingStandardsIgnoreStart
@@ -562,7 +563,7 @@ abstract class ModuleCore
         // No files upgrade, then upgrade succeed
         if (count($list) == 0) {
             // @codingStandardsIgnoreStart
-            self::$modules_cache[$moduleName]['upgrade']['success'] = true;
+            static::$modules_cache[$moduleName]['upgrade']['success'] = true;
             // @codingStandardsIgnoreEnd
             Module::upgradeModuleVersion($moduleName, $moduleVersion);
         }
@@ -571,8 +572,8 @@ abstract class ModuleCore
 
         // Set the list to module cache
         // @codingStandardsIgnoreStart
-        self::$modules_cache[$moduleName]['upgrade']['upgrade_file_left'] = $list;
-        self::$modules_cache[$moduleName]['upgrade']['available_upgrade'] = count($list);
+        static::$modules_cache[$moduleName]['upgrade']['upgrade_file_left'] = $list;
+        static::$modules_cache[$moduleName]['upgrade']['available_upgrade'] = count($list);
         // @codingStandardsIgnoreEnd
 
         return (bool) count($list);
@@ -591,8 +592,8 @@ abstract class ModuleCore
     public static function getUpgradeStatus($moduleName)
     {
         // @codingStandardsIgnoreStart
-        return (isset(self::$modules_cache[$moduleName]) &&
-            self::$modules_cache[$moduleName]['upgrade']['success']);
+        return (isset(static::$modules_cache[$moduleName]) &&
+            static::$modules_cache[$moduleName]['upgrade']['success']);
         // @codingStandardsIgnoreEnd
     }
 
@@ -667,7 +668,7 @@ abstract class ModuleCore
     {
         // Module can now define AdminTab keeping the module translations method,
         // i.e. in modules/[module name]/[iso_code].php
-        if (!isset(self::$classInModule[$currentClass]) && class_exists($currentClass)) {
+        if (!isset(static::$classInModule[$currentClass]) && class_exists($currentClass)) {
             global $_MODULES;
             $_MODULE = [];
             $reflectionClass = new ReflectionClass($currentClass);
@@ -676,23 +677,23 @@ abstract class ModuleCore
             if (substr(realpath($filePath), 0, strlen($realpathModuleDir)) == $realpathModuleDir) {
                 // For controllers in module/controllers path
                 if (basename(dirname(dirname($filePath))) == 'controllers') {
-                    self::$classInModule[$currentClass] = basename(dirname(dirname(dirname($filePath))));
+                    static::$classInModule[$currentClass] = basename(dirname(dirname(dirname($filePath))));
                 } else {
                     // For old AdminTab controllers
-                    self::$classInModule[$currentClass] = substr(dirname($filePath), strlen($realpathModuleDir) + 1);
+                    static::$classInModule[$currentClass] = substr(dirname($filePath), strlen($realpathModuleDir) + 1);
                 }
 
-                $file = _PS_MODULE_DIR_.self::$classInModule[$currentClass].'/'.Context::getContext()->language->iso_code.'.php';
+                $file = _PS_MODULE_DIR_.static::$classInModule[$currentClass].'/'.Context::getContext()->language->iso_code.'.php';
                 if (file_exists($file) && include_once($file)) {
                     $_MODULES = !empty($_MODULES) ? array_merge($_MODULES, $_MODULE) : $_MODULE;
                 }
             } else {
-                self::$classInModule[$currentClass] = false;
+                static::$classInModule[$currentClass] = false;
             }
         }
 
         // return name of the module, or false
-        return self::$classInModule[$currentClass];
+        return static::$classInModule[$currentClass];
     }
 
     /**
@@ -864,26 +865,27 @@ abstract class ModuleCore
                         }
                     }
 
-                    $item = new stdClass();
-                    $item->id = 0;
-                    $item->warning = '';
+                    $item = [
+                        'id' => 0,
+                        'warning' => '',
+                        'active' => 0,
+                        'onclick_option' => false,
+                        'trusted' => true,
+                        'displayName' => stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->displayName), (string) $xmlModule->name)),
+                        'description' => stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->description), (string) $xmlModule->name)),
+                        'author' => stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->author), (string) $xmlModule->name)),
+                        'author_uri' => (isset($xmlModule->author_uri) && $xmlModule->author_uri) ? stripslashes($xmlModule->author_uri) : false,
+                    ];
 
                     foreach ($xmlModule as $k => $v) {
-                        $item->$k = (string) $v;
+                        $item[$k] = (string) $v;
                     }
-
-                    $item->displayName = stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->displayName), (string) $xmlModule->name));
-                    $item->description = stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->description), (string) $xmlModule->name));
-                    $item->author = stripslashes(Translate::getModuleTranslation((string) $xmlModule->name, Module::configXmlStringFormat($xmlModule->author), (string) $xmlModule->name));
-                    $item->author_uri = (isset($xmlModule->author_uri) && $xmlModule->author_uri) ? stripslashes($xmlModule->author_uri) : false;
 
                     if (isset($xmlModule->confirmUninstall)) {
-                        $item->confirmUninstall = Translate::getModuleTranslation((string) $xmlModule->name, html_entity_decode(Module::configXmlStringFormat($xmlModule->confirmUninstall)), (string) $xmlModule->name);
+                        $item['confirmUninstall'] = Translate::getModuleTranslation((string) $xmlModule->name, html_entity_decode(Module::configXmlStringFormat($xmlModule->confirmUninstall)), (string) $xmlModule->name);
                     }
 
-                    $item->active = 0;
-                    $item->onclick_option = false;
-                    $item->trusted = Module::isModuleTrusted($item->name);
+                    $item = (object) $item;
 
                     $moduleList[] = $item;
 
@@ -923,51 +925,54 @@ abstract class ModuleCore
                 if (class_exists($module, false)) {
                     $tmpModule = Adapter_ServiceLocator::get($module);
 
-                    $item = new stdClass();
-                    $item->id = $tmpModule->id;
-                    $item->warning = $tmpModule->warning;
-                    $item->name = $tmpModule->name;
-                    $item->version = $tmpModule->version;
-                    $item->tab = $tmpModule->tab;
-                    $item->displayName = $tmpModule->displayName;
-                    $item->description = stripslashes($tmpModule->description);
-                    $item->author = $tmpModule->author;
-                    $item->author_uri = (isset($tmpModule->author_uri) && $tmpModule->author_uri) ? $tmpModule->author_uri : false;
-                    $item->limited_countries = $tmpModule->limited_countries;
-                    $item->parent_class = get_parent_class($module);
-                    $item->is_configurable = $tmpModule->is_configurable = method_exists($tmpModule, 'getContent') ? 1 : 0;
-                    $item->need_instance = isset($tmpModule->need_instance) ? $tmpModule->need_instance : 0;
-                    $item->active = $tmpModule->active;
-                    $item->trusted = Module::isModuleTrusted($tmpModule->name);
-                    $item->currencies = isset($tmpModule->currencies) ? $tmpModule->currencies : null;
-                    $item->currencies_mode = isset($tmpModule->currencies_mode) ? $tmpModule->currencies_mode : null;
-                    $item->confirmUninstall = isset($tmpModule->confirmUninstall) ? html_entity_decode($tmpModule->confirmUninstall) : null;
-                    $item->description_full = stripslashes($tmpModule->description_full);
-                    $item->additional_description = isset($tmpModule->additional_description) ? stripslashes($tmpModule->additional_description) : null;
-                    $item->compatibility = isset($tmpModule->compatibility) ? (array) $tmpModule->compatibility : null;
-                    $item->nb_rates = isset($tmpModule->nb_rates) ? (array) $tmpModule->nb_rates : null;
-                    $item->avg_rate = isset($tmpModule->avg_rate) ? (array) $tmpModule->avg_rate : null;
-                    $item->badges = isset($tmpModule->badges) ? (array) $tmpModule->badges : null;
-                    $item->url = isset($tmpModule->url) ? $tmpModule->url : null;
-                    $item->onclick_option = method_exists($module, 'onclickOption') ? true : false;
+                    $item = [
+                        'id'                     => is_null($tmpModule->id) ? 0 : $tmpModule->id,
+                        'warning'                => $tmpModule->warning,
+                        'name'                   => $tmpModule->name,
+                        'version'                => $tmpModule->version,
+                        'tab'                    => $tmpModule->tab,
+                        'displayName'            => $tmpModule->displayName,
+                        'description'            => stripslashes($tmpModule->description),
+                        'author'                 => $tmpModule->author,
+                        'author_uri'             => (isset($tmpModule->author_uri) && $tmpModule->author_uri) ? $tmpModule->author_uri : false,
+                        'limited_countries'      => $tmpModule->limited_countries,
+                        'parent_class'           => get_parent_class($module),
+                        'is_configurable'        => $tmpModule->is_configurable = method_exists($tmpModule, 'getContent') ? 1 : 0,
+                        'need_instance'          => isset($tmpModule->need_instance) ? $tmpModule->need_instance : 0,
+                        'active'                 => $tmpModule->active,
+                        'trusted'                => true,
+                        'currencies'             => isset($tmpModule->currencies) ? $tmpModule->currencies : null,
+                        'currencies_mode'        => isset($tmpModule->currencies_mode) ? $tmpModule->currencies_mode : null,
+                        'confirmUninstall'       => isset($tmpModule->confirmUninstall) ? html_entity_decode($tmpModule->confirmUninstall) : null,
+                        'description_full'       => stripslashes($tmpModule->description_full),
+                        'additional_description' => isset($tmpModule->additional_description) ? stripslashes($tmpModule->additional_description) : null,
+                        'compatibility'          => isset($tmpModule->compatibility) ? (array) $tmpModule->compatibility : null,
+                        'nb_rates'               => isset($tmpModule->nb_rates) ? (array) $tmpModule->nb_rates : null,
+                        'avg_rate'               => isset($tmpModule->avg_rate) ? (array) $tmpModule->avg_rate : null,
+                        'badges'                 => isset($tmpModule->badges) ? (array) $tmpModule->badges : null,
+                        'url'                    => isset($tmpModule->url) ? $tmpModule->url : null,
+                        'onclick_option'         => method_exists($module, 'onclickOption') ? true : false,
+                    ];
 
-                    if ($item->onclick_option) {
+                    if ($item['onclick_option']) {
                         $href = Context::getContext()->link->getAdminLink('Module', true).'&module_name='.$tmpModule->name.'&tab_module='.$tmpModule->tab;
-                        $item->onclick_option_content = [];
+                        $item['onclick_option_content'] = [];
                         $optionTab = ['desactive', 'reset', 'configure', 'delete'];
 
                         foreach ($optionTab as $opt) {
-                            $item->onclick_option_content[$opt] = $tmpModule->onclickOption($opt, $href);
+                            $item['onclick_option_content'][$opt] = $tmpModule->onclickOption($opt, $href);
                         }
                     }
 
+                    $item = (object) $item;
                     $moduleList[] = $item;
+                    $modulesNameToCursor[Tools::strtolower($item->name)] = $item;
 
                     if (!$xmlExist || $needNewConfigFile) {
                         // @codingStandardsIgnoreStart
-                        self::$_generate_config_xml_mode = true;
+                        static::$_generate_config_xml_mode = true;
                         $tmpModule->_generateConfigXml();
-                        self::$_generate_config_xml_mode = false;
+                        static::$_generate_config_xml_mode = false;
                         // @codingStandardsIgnoreEnd
                     }
 
@@ -997,106 +1002,66 @@ abstract class ModuleCore
             }
         }
 
-        // Get Default Country Modules and customer module
-        $filesList = [];
-        foreach ($filesList as $f) {
-            if (file_exists($f['file']) && ($f['loggedOnAddons'] == 0 || $loggedOnAddons)) {
-                if (Module::useTooMuchMemory()) {
-                    $errors[] = Tools::displayError('All modules cannot be loaded due to memory limit restrictions, please increase your memory_limit value on your server configuration');
-                    break;
+        // Get native and partner modules
+        /** @var TbUpdater $updater */
+        $updater = Module::getInstanceByName('tbupdater');
+        $languageCode = str_replace('_', '-', Tools::strtolower(Context::getContext()->language->language_code));
+
+        // This array gets filled with requested module images to download (key = module code, value = guzzle promise)
+        $imagePromises = [];
+        $guzzle = new \GuzzleHttp\Client(['http_errors' => false]);
+        if (Validate::isLoadedObject($updater) && $modules = $updater->getCachedModulesInfo()) {
+            foreach ($modules as $name => $module) {
+                if (isset($modulesNameToCursor[Tools::strtolower(strval($name))])) {
+                    $moduleFromList = $modulesNameToCursor[Tools::strtolower(strval($name))];
+                    if ($moduleFromList->version && Version::gt($module['version'], $moduleFromList->version)) {
+                        $moduleFromList->version_addons = $module['version'];
+                        $modulesNameToCursor[Tools::strtolower(strval($name))] = $moduleFromList;
+                    }
+
+                    continue;
                 }
 
-                $guzzle = new \GuzzleHttp\Client(['http_errors' => false]);
-                $file = $f['file'];
-                try {
-                    $content = (string) $guzzle->get($file)->getBody();
-                } catch (Exception $e) {
-                    $content = '';
-                }
-                $xml = @simplexml_load_string($content, null, LIBXML_NOCDATA);
+                $item = [
+                    'id'                  => 0,
+                    'warning'             => '',
+                    'type'                => 'native',
+                    'name'                => $name,
+                    'version'             => $module['version'],
+                    'tab'                 => isset($module['tab']) ? $module['tab'] : 'administration',
+                    'displayName'         => isset($module['displayName'][$languageCode]) ? $module['displayName'][$languageCode] : (isset($module['displayName']['en-us']) ? $module['displayName']['en-us'] : 'Unknown module'),
+                    'description'         => isset($module['description'][$languageCode]) ? $module['description'][$languageCode] : (isset($module['description']['en-us']) ? $module['description']['en-us'] : ''),
+                    'description_full'    => isset($module['description_full'][$languageCode]) ? $module['description_full'][$languageCode] : (isset($module['description_full']['en-us']) ? $module['description_full']['en-us'] : ''),
+                    'author'              => isset($module['author']) ? $module['author'] : 'thirty bees',
+                    'limited_countries'   => [],
+                    'parent_class'        => '',
+                    'onclick_option'      => false,
+                    'is_configurable'     => 0,
+                    'need_instance'       => 0,
+                    'not_on_disk'         => 1,
+                    'available_on_addons' => 1,
+                    'trusted'             => true,
+                    'active'              => 0,
+                    'url'                 => isset($module['url']) ? $module['url'] : '',
+                ];
 
-                if ($xml && isset($xml->module)) {
-                    foreach ($xml->module as $modaddons) {
-                        $flagFound = 0;
-
-                        foreach ($moduleList as $k => &$m) {
-                            if (Tools::strtolower($m->name) == Tools::strtolower($modaddons->name) && !isset($m->available_on_addons)) {
-                                $flagFound = 1;
-                                if ($m->version != $modaddons->version && version_compare($m->version, $modaddons->version) === -1) {
-                                    $moduleList[$k]->version_addons = $modaddons->version;
-                                }
-                            }
-                        }
-
-                        if ($flagFound == 0) {
-                            $item = new stdClass();
-                            $item->id = 0;
-                            $item->warning = '';
-                            $item->type = strip_tags((string) $f['type']);
-                            $item->name = strip_tags((string) $modaddons->name);
-                            $item->version = strip_tags((string) $modaddons->version);
-                            $item->tab = strip_tags((string) $modaddons->tab);
-                            $item->displayName = strip_tags((string) $modaddons->displayName);
-                            $item->description = stripslashes(strip_tags((string) $modaddons->description));
-                            $item->description_full = stripslashes(strip_tags((string) $modaddons->description_full));
-                            $item->author = strip_tags((string) $modaddons->author);
-                            $item->limited_countries = [];
-                            $item->parent_class = '';
-                            $item->onclick_option = false;
-                            $item->is_configurable = 0;
-                            $item->need_instance = 0;
-                            $item->not_on_disk = 1;
-                            $item->available_on_addons = 1;
-                            $item->trusted = true;
-                            $item->active = 0;
-                            $item->description_full = stripslashes($modaddons->description_full);
-                            $item->additional_description = isset($modaddons->additional_description) ? stripslashes($modaddons->additional_description) : null;
-                            $item->compatibility = isset($modaddons->compatibility) ? (array) $modaddons->compatibility : null;
-                            $item->nb_rates = isset($modaddons->nb_rates) ? (array) $modaddons->nb_rates : null;
-                            $item->avg_rate = isset($modaddons->avg_rate) ? (array) $modaddons->avg_rate : null;
-                            $item->badges = isset($modaddons->badges) ? (array) $modaddons->badges : null;
-                            $item->url = isset($modaddons->url) ? $modaddons->url : null;
-
-                            if (isset($modaddons->img)) {
-                                if (!file_exists(_PS_TMP_IMG_DIR_.md5((int) $modaddons->id.'-'.$modaddons->name).'.jpg')) {
-                                    $guzzle = new \GuzzleHttp\Client(['http_errors' => false]);
-                                    try {
-                                        $contents = (string) $guzzle->get($modaddons->img)->getBody();
-                                    } catch (Exception $e) {
-                                        $contents = null;
-                                    }
-                                    if (!file_put_contents(_PS_TMP_IMG_DIR_.md5((int) $modaddons->id.'-'.$modaddons->name).'.jpg', $contents)) {
-                                        copy(_PS_IMG_DIR_.'404.gif', _PS_TMP_IMG_DIR_.md5((int) $modaddons->id.'-'.$modaddons->name).'.jpg');
-                                    }
-                                }
-
-                                if (file_exists(_PS_TMP_IMG_DIR_.md5((int) $modaddons->id.'-'.$modaddons->name).'.jpg')) {
-                                    $item->image = '../img/tmp/'.md5((int) $modaddons->id.'-'.$modaddons->name).'.jpg';
-                                }
-                            }
-
-                            if ($item->type == 'addonsMustHave') {
-                                $item->addons_buy_url = strip_tags((string) $modaddons->url);
-                                $prices = (array) $modaddons->price;
-                                $idDefaultCurrency = Configuration::get('PS_CURRENCY_DEFAULT');
-
-                                foreach ($prices as $currency => $price) {
-                                    if ($idCurrency = Currency::getIdByIsoCode($currency)) {
-                                        $item->price = (float) $price;
-                                        $item->id_currency = (int) $idCurrency;
-
-                                        if ($idDefaultCurrency == $idCurrency) {
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            $moduleList[$modaddons->id.'-'.$item->name] = $item;
+                if (isset($module['img'])) {
+                    if (!file_exists(_PS_TMP_IMG_DIR_.md5($name).'.png')) {
+                        try {
+                            $imagePromises[$name] = $guzzle->getAsync($module['img'], ['sink' => _PS_TMP_IMG_DIR_.md5($name).'.png']);
+                        } catch (Exception $e) {
                         }
                     }
+
+                    $item['image'] = '../img/tmp/'.md5($name).'.png';
                 }
+
+                $moduleList[] = (object) $item;
             }
+        }
+        // Download images simultaneously
+        if (!empty($imagePromises)) {
+            GuzzleHttp\Promise\settle($imagePromises)->wait();
         }
 
         foreach ($moduleList as $key => &$module) {
@@ -1112,7 +1077,6 @@ abstract class ModuleCore
             }
         }
 
-        usort($moduleList, create_function('$a,$b', 'return strnatcasecmp($a->displayName, $b->displayName);'));
         if ($errors) {
             if (!isset(Context::getContext()->controller) && !Context::getContext()->controller->controller_name) {
                 echo '<div class="alert error"><h3>'.Tools::displayError('The following module(s) could not be loaded').':</h3><ol>';
@@ -1205,7 +1169,7 @@ abstract class ModuleCore
      */
     public static function getNativeModuleList()
     {
-        return self::getNonNativeModuleList();
+        return static::getNonNativeModuleList();
     }
 
     /**
@@ -1554,8 +1518,6 @@ abstract class ModuleCore
         }
         // @codingStandardsIgnoreEnd
 
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_PAGE);
-
         return true;
     }
 
@@ -1567,7 +1529,13 @@ abstract class ModuleCore
      */
     public function checkCompliancy()
     {
+        if (isset($this->tb_versions_compliancy) && $this->tb_versions_compliancy) {
+            $range = new Expression($this->tb_versions_compliancy);
+        }
+
         if (version_compare(_PS_VERSION_, $this->ps_versions_compliancy['min'], '<') || version_compare(_PS_VERSION_, $this->ps_versions_compliancy['max'], '>')) {
+            return false;
+        } elseif (isset($range) && !$range->satisfiedBy(new Version(_TB_VERSION_))) {
             return false;
         } else {
             return true;
@@ -2114,7 +2082,7 @@ abstract class ModuleCore
     public function runUpgradeModule()
     {
         // @codingStandardsIgnoreStart
-        $upgrade = &self::$modules_cache[$this->name]['upgrade'];
+        $upgrade = &static::$modules_cache[$this->name]['upgrade'];
         // @codingStandardsIgnore
         foreach ($upgrade['upgrade_file_left'] as $num => $fileDetail) {
             foreach ($fileDetail['upgrade_function'] as $item) {
@@ -2261,7 +2229,6 @@ abstract class ModuleCore
         if (Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'module` WHERE `id_module` = '.(int) $this->id)) {
             Cache::clean('Module::isInstalled'.$this->name);
             Cache::clean('Module::getModuleIdByName_'.pSQL($this->name));
-            UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_PAGE);
 
             return true;
         }
@@ -2463,7 +2430,7 @@ abstract class ModuleCore
      */
     public function l($string, $specific = false)
     {
-        if (self::$_generate_config_xml_mode) {
+        if (static::$_generate_config_xml_mode) {
             return $string;
         }
 
@@ -3123,21 +3090,21 @@ abstract class ModuleCore
             return true;
         }
 
-        if (!isset(self::$cache_permissions[$employee->id_profile])) {
-            self::$cache_permissions[$employee->id_profile] = [];
+        if (!isset(static::$cache_permissions[$employee->id_profile])) {
+            static::$cache_permissions[$employee->id_profile] = [];
             $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS('SELECT `id_module`, `view`, `configure`, `uninstall` FROM `'._DB_PREFIX_.'module_access` WHERE `id_profile` = '.(int) $employee->id_profile);
             foreach ($result as $row) {
-                self::$cache_permissions[$employee->id_profile][$row['id_module']]['view'] = $row['view'];
-                self::$cache_permissions[$employee->id_profile][$row['id_module']]['configure'] = $row['configure'];
-                self::$cache_permissions[$employee->id_profile][$row['id_module']]['uninstall'] = $row['uninstall'];
+                static::$cache_permissions[$employee->id_profile][$row['id_module']]['view'] = $row['view'];
+                static::$cache_permissions[$employee->id_profile][$row['id_module']]['configure'] = $row['configure'];
+                static::$cache_permissions[$employee->id_profile][$row['id_module']]['uninstall'] = $row['uninstall'];
             }
         }
 
-        if (!isset(self::$cache_permissions[$employee->id_profile][$idModule])) {
+        if (!isset(static::$cache_permissions[$employee->id_profile][$idModule])) {
             throw new PrestaShopException('No access reference in table module_access for id_module '.$idModule.'.');
         }
 
-        return (bool) self::$cache_permissions[$employee->id_profile][$idModule][$variable];
+        return (bool) static::$cache_permissions[$employee->id_profile][$idModule][$variable];
     }
 
     /**
@@ -3316,7 +3283,7 @@ abstract class ModuleCore
             $ps_smarty_clear_cache = Configuration::get('PS_SMARTY_CLEAR_CACHE');
         }
 
-        if (self::$_batch_mode) {
+        if (static::$_batch_mode) {
             if ($ps_smarty_clear_cache == 'never') {
                 return 0;
             }
@@ -3326,8 +3293,8 @@ abstract class ModuleCore
             }
 
             $key = $template.'-'.$cacheId.'-'.$compileId;
-            if (!isset(self::$_defered_clearCache[$key])) {
-                self::$_defered_clearCache[$key] = [$this->getTemplatePath($template), $cacheId, $compileId];
+            if (!isset(static::$_defered_clearCache[$key])) {
+                static::$_defered_clearCache[$key] = [$this->getTemplatePath($template), $cacheId, $compileId];
             }
         } else {
             if ($ps_smarty_clear_cache == 'never') {

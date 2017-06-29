@@ -54,9 +54,10 @@ class AdminCurrenciesControllerCore extends AdminController
             'name'            => ['title' => $this->l('Currency')],
             'iso_code'        => ['title' => $this->l('ISO code'), 'align' => 'center', 'class' => 'fixed-width-xs'],
             'iso_code_num'    => ['title' => $this->l('ISO code number'), 'align' => 'center', 'class' => 'fixed-width-xs'],
+            'sign'            => ['title' => $this->l('Symbol'), 'width' => 20, 'align' => 'center', 'orderby' => false, 'search' => false, 'class' => 'fixed-width-xs'],
             'conversion_rate' => ['title' => $this->l('Exchange rate'), 'type' => 'float', 'align' => 'center', 'width' => 130, 'search' => false, 'filter_key' => 'currency_shop!conversion_rate'],
             'active'          => ['title' => $this->l('Enabled'), 'width' => 25, 'align' => 'center', 'active' => 'status', 'type' => 'bool', 'orderby' => false, 'class' => 'fixed-width-sm'],
-            'module_name'     => ['title' => $this->l('Exchange rate service'), 'type' => 'fx_service', 'align' => 'center', 'class' => 'fixed-width-md', 'orderby' => false, 'search' => false ],
+            'module_name'     => ['title' => $this->l('Exchange rate service'), 'type' => 'fx_service', 'align' => 'center', 'class' => 'fixed-width-md', 'orderby' => false, 'search' => false],
         ];
 
         $this->bulk_actions = [
@@ -71,7 +72,7 @@ class AdminCurrenciesControllerCore extends AdminController
             'change' => [
                 'title'       => $this->l('Currency rates'),
                 'image'       => '../img/admin/exchangesrate.gif',
-                'description' => $this->l('Use thirty bees\' webservice to update your currency\'s exchange rates. However, please use caution: rates are provided as-is.'),
+                'description' => $this->l('Use currency rate modules to update your currency\'s exchange rates. However, please use caution: rates are provided as-is.'),
                 'submit'      => [
                     'title' => $this->l('Update currency rates'),
                     'name'  => 'SubmitExchangesRates',
@@ -150,9 +151,12 @@ class AdminCurrenciesControllerCore extends AdminController
                     'hint'      => $this->l('Numeric ISO code (e.g. 840 for Dollars, 978 for Euros, etc.).'),
                 ],
                 [
-                    'type'          => 'hidden',
-                    'name'          => 'sign',
-                    'default_value' => '$',
+                    'type'      => 'text',
+                    'label'     => $this->l('Symbol'),
+                    'name'      => 'sign',
+                    'maxlength' => 8,
+                    'required'  => true,
+                    'hint'      => $this->l('Will appear in front office (e.g. $, &euro;, etc.)'),
                 ],
                 [
                     'type'      => 'text',
@@ -314,7 +318,7 @@ class AdminCurrenciesControllerCore extends AdminController
     public function processExchangeRates()
     {
         if (!$this->errors = Currency::refreshCurrencies()) {
-            Tools::redirectAdmin(self::$currentIndex.'&conf=6&token='.$this->token);
+            Tools::redirectAdmin(static::$currentIndex.'&conf=6&token='.$this->token);
         }
     }
 
@@ -348,7 +352,7 @@ class AdminCurrenciesControllerCore extends AdminController
     {
         if (empty($this->display)) {
             $this->page_header_toolbar_btn['new_currency'] = [
-                'href' => self::$currentIndex.'&addcurrency&token='.$this->token,
+                'href' => static::$currentIndex.'&addcurrency&token='.$this->token,
                 'desc' => $this->l('Add new currency', null, null, false),
                 'icon' => 'process-icon-new',
             ];

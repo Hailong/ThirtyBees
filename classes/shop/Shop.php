@@ -278,9 +278,6 @@ class ShopCore extends ObjectModel
         Configuration::updateValue('PS_ROUTE_cms_category_rule', array_map(function() {return '{categories:/}{rewrite}';}, $langs));
         // @codingStandardsIgnoreEnd
 
-        // Regenerate URLs for shop and insert defaults
-        UrlRewrite::regenerateUrlRewrites(null, $this->id);
-
         Shop::cacheShops(true);
 
         return $res;
@@ -388,7 +385,6 @@ class ShopCore extends ObjectModel
 
     /**
      * Find the shop from current domain / uri and get an instance of this shop
-     * if INSTALL_VERSION is defined, will return an empty shop object
      *
      * @return Shop
      *
@@ -516,16 +512,16 @@ class ShopCore extends ObjectModel
             }
         }
 
-        self::$context_id_shop = $shop->id;
-        self::$context_id_shop_group = $shop->id_shop_group;
-        self::$context = self::CONTEXT_SHOP;
+        static::$context_id_shop = $shop->id;
+        static::$context_id_shop_group = $shop->id_shop_group;
+        static::$context = static::CONTEXT_SHOP;
 
         return $shop;
     }
 
     /**
      * @return Address the current shop address
-     *                 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -551,7 +547,7 @@ class ShopCore extends ObjectModel
      * Get shop theme name
      *
      * @return string
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -564,7 +560,7 @@ class ShopCore extends ObjectModel
      * Get shop URI
      *
      * @return string
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -580,7 +576,7 @@ class ShopCore extends ObjectModel
      * @param string $addBaseUri     if set to true, shop base uri will be added
      *
      * @return string complete base url of current shop
-     *                
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -605,7 +601,7 @@ class ShopCore extends ObjectModel
      * Get group of current shop
      *
      * @return ShopGroup
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -622,7 +618,7 @@ class ShopCore extends ObjectModel
      * Get root category of current shop
      *
      * @return int
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -635,7 +631,7 @@ class ShopCore extends ObjectModel
      * Get list of shop's urls
      *
      * @return array
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -653,7 +649,7 @@ class ShopCore extends ObjectModel
      * Check if current shop ID is the same as default shop in configuration
      *
      * @return bool
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -666,7 +662,7 @@ class ShopCore extends ObjectModel
      * Get the associated table if available
      *
      * @return array
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -683,7 +679,7 @@ class ShopCore extends ObjectModel
      * check if the table has an id_shop_default
      *
      * @return bool
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -693,14 +689,14 @@ class ShopCore extends ObjectModel
             Shop::init();
         }
 
-        return in_array($table, self::$id_shop_default_tables);
+        return in_array($table, static::$id_shop_default_tables);
     }
 
     /**
      * Get list of associated tables to shop
      *
      * @return array
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -720,7 +716,7 @@ class ShopCore extends ObjectModel
      * @param array  $table_details
      *
      * @return bool
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -741,7 +737,7 @@ class ShopCore extends ObjectModel
      * @param string $table
      *
      * @return bool
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -758,17 +754,17 @@ class ShopCore extends ObjectModel
      * Load list of groups and shops, and cache it
      *
      * @param bool $refresh
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
     public static function cacheShops($refresh = false)
     {
-        if (!is_null(self::$shops) && !$refresh) {
+        if (!is_null(static::$shops) && !$refresh) {
             return;
         }
 
-        self::$shops = [];
+        static::$shops = [];
 
         $from = '';
         $where = '';
@@ -795,8 +791,8 @@ class ShopCore extends ObjectModel
 
         if ($results = Db::getInstance()->executeS($sql)) {
             foreach ($results as $row) {
-                if (!isset(self::$shops[$row['id_shop_group']])) {
-                    self::$shops[$row['id_shop_group']] = [
+                if (!isset(static::$shops[$row['id_shop_group']])) {
+                    static::$shops[$row['id_shop_group']] = [
                         'id'             => $row['id_shop_group'],
                         'name'           => $row['group_name'],
                         'share_customer' => $row['share_customer'],
@@ -806,7 +802,7 @@ class ShopCore extends ObjectModel
                     ];
                 }
 
-                self::$shops[$row['id_shop_group']]['shops'][$row['id_shop']] = [
+                static::$shops[$row['id_shop_group']]['shops'][$row['id_shop']] = [
                     'id_shop'       => $row['id_shop'],
                     'id_shop_group' => $row['id_shop_group'],
                     'name'          => $row['shop_name'],
@@ -823,7 +819,7 @@ class ShopCore extends ObjectModel
 
     /**
      * @return array|null
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -853,7 +849,7 @@ class ShopCore extends ObjectModel
      * @param bool $getAsListId
      *
      * @return array
-     * 
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
@@ -862,7 +858,7 @@ class ShopCore extends ObjectModel
         Shop::cacheShops();
 
         $results = [];
-        foreach (self::$shops as $group_id => $group_data) {
+        foreach (static::$shops as $group_id => $group_data) {
             foreach ($group_data['shops'] as $id => $shop_data) {
                 if ((!$active || $shop_data['active']) && (!$idShopGroup || $idShopGroup == $group_id)) {
                     if ($getAsListId) {
@@ -941,7 +937,7 @@ class ShopCore extends ObjectModel
     public static function getShop($shopId)
     {
         Shop::cacheShops();
-        foreach (self::$shops as $group_id => $groupData) {
+        foreach (static::$shops as $group_id => $groupData) {
             if (array_key_exists($shopId, $groupData['shops'])) {
                 return $groupData['shops'][$shopId];
             }
@@ -963,7 +959,7 @@ class ShopCore extends ObjectModel
     public static function getIdByName($name)
     {
         Shop::cacheShops();
-        foreach (self::$shops as $groupData) {
+        foreach (static::$shops as $groupData) {
             foreach ($groupData['shops'] as $shop_id => $shopData) {
                 if (Tools::strtolower($shopData['name']) == Tools::strtolower($name)) {
                     return $shop_id;
@@ -1001,7 +997,7 @@ class ShopCore extends ObjectModel
     public static function getGroupFromShop($shopId, $asId = true)
     {
         Shop::cacheShops();
-        foreach (self::$shops as $groupId => $groupData) {
+        foreach (static::$shops as $groupId => $groupData) {
             if (array_key_exists($shopId, $groupData['shops'])) {
                 return ($asId) ? $groupId : $groupData;
             }
@@ -1028,7 +1024,7 @@ class ShopCore extends ObjectModel
         }
 
         Shop::cacheShops();
-        foreach (self::$shops as $groupData) {
+        foreach (static::$shops as $groupData) {
             if (array_key_exists($shopId, $groupData['shops']) && $groupData[$type]) {
                 return array_keys($groupData['shops']);
             }
@@ -1096,19 +1092,19 @@ class ShopCore extends ObjectModel
     {
         // @codingStandardsIgnoreStart
         switch ($type) {
-            case self::CONTEXT_ALL :
-                self::$context_id_shop = null;
-                self::$context_id_shop_group = null;
+            case static::CONTEXT_ALL :
+                static::$context_id_shop = null;
+                static::$context_id_shop_group = null;
                 break;
 
-            case self::CONTEXT_GROUP :
-                self::$context_id_shop = null;
-                self::$context_id_shop_group = (int) $id;
+            case static::CONTEXT_GROUP :
+                static::$context_id_shop = null;
+                static::$context_id_shop_group = (int) $id;
                 break;
 
-            case self::CONTEXT_SHOP :
-                self::$context_id_shop = (int) $id;
-                self::$context_id_shop_group = Shop::getGroupFromShop($id);
+            case static::CONTEXT_SHOP :
+                static::$context_id_shop = (int) $id;
+                static::$context_id_shop_group = Shop::getGroupFromShop($id);
                 break;
 
             default :
@@ -1116,7 +1112,7 @@ class ShopCore extends ObjectModel
         }
         // @codingStandardsIgnoreEnd
 
-        self::$context = $type;
+        static::$context = $type;
     }
 
     /**
@@ -1129,7 +1125,7 @@ class ShopCore extends ObjectModel
      */
     public static function getContext()
     {
-        return self::$context;
+        return static::$context;
     }
 
     /**
@@ -1147,7 +1143,7 @@ class ShopCore extends ObjectModel
         }
 
         // @codingStandardsIgnoreStart
-        return self::$context_id_shop;
+        return static::$context_id_shop;
         // @codingStandardsIgnoreEnd
     }
 
@@ -1166,7 +1162,7 @@ class ShopCore extends ObjectModel
         }
 
         // @codingStandardsIgnoreStart
-        return self::$context_id_shop_group;
+        return static::$context_id_shop_group;
         // @codingStandardsIgnoreEnd
     }
 
@@ -1174,7 +1170,7 @@ class ShopCore extends ObjectModel
     {
         static $contextShopGroup = null;
         if ($contextShopGroup === null) {
-            $contextShopGroup = new ShopGroup((int) self::$context_id_shop_group);
+            $contextShopGroup = new ShopGroup((int) static::$context_id_shop_group);
         }
 
         return $contextShopGroup;
@@ -1231,8 +1227,8 @@ class ShopCore extends ObjectModel
         }
         $sql = (($innerJoin) ? ' INNER' : ' LEFT').' JOIN '._DB_PREFIX_.$table.'_shop '.$table_alias.'
 		ON ('.$table_alias.'.id_'.$table.' = '.$alias.'.id_'.$table;
-        if ((int) self::$context_id_shop) {
-            $sql .= ' AND '.$table_alias.'.id_shop = '.(int) self::$context_id_shop;
+        if ((int) static::$context_id_shop) {
+            $sql .= ' AND '.$table_alias.'.id_shop = '.(int) static::$context_id_shop;
         } elseif (Shop::checkIdShopDefault($table) && !$forceNotDefault) {
             $sql .= ' AND '.$table_alias.'.id_shop = '.$alias.'.id_shop_default';
         } else {
@@ -1278,7 +1274,7 @@ class ShopCore extends ObjectModel
     {
         Shop::cacheShops();
 
-        return self::$shops;
+        return static::$shops;
     }
 
     /**

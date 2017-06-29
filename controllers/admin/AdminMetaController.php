@@ -96,18 +96,21 @@ class AdminMetaControllerCore extends AdminController
         $generalFields = [
             'PS_REWRITING_SETTINGS'       => [
                 'title'      => $this->l('Friendly URL'),
-                'hint'       => ($modRewrite ? $this->l('Enable this option only if your server allows URL rewriting (recommended).') : ''),
+                'hint'       => ($this->l('This option gives your shop SEO friendly, human readable URLs, e.g. http://example.com/blouse instead of http://example.com/index.php?id_product=1&controller=product (recommended).')),
                 'validation' => 'isBool',
                 'cast'       => 'intval',
                 'type'       => 'bool',
                 'desc'       => (!$modRewrite ? $this->l('URL rewriting (mod_rewrite) is not active on your server, or it is not possible to check your server configuration. If you want to use Friendly URLs, you must activate this mod.') : ''),
+                'disabled'   => !$modRewrite,
             ],
             'PS_ALLOW_ACCENTED_CHARS_URL' => [
                 'title'      => $this->l('Accented URL'),
-                'hint'       => $this->l('Enable this option if you want to allow accented characters in your friendly URLs.').' '.$this->l('You should only activate this option if you are using non-latin characters ; for all the latin charsets, your SEO will be better without this option.'),
+                'hint'       => $this->l('Enable this option if you want to allow accented characters in your friendly URLs.').' '.$this->l('You should only activate this option if you are using non-latin characters. For all the latin charsets, your SEO will be better without this option.'),
                 'validation' => 'isBool',
                 'cast'       => 'intval',
                 'type'       => 'bool',
+                'desc'       => (!$modRewrite ? $this->l('Not available because URL rewriting (mod_rewrite) isn\'t available.') : ''),
+                'disabled'   => !$modRewrite,
             ],
             'PS_CANONICAL_REDIRECT'       => [
                 'title'      => $this->l('Redirect to the canonical URL'),
@@ -288,7 +291,7 @@ class AdminMetaControllerCore extends AdminController
     {
         if (empty($this->display)) {
             $this->page_header_toolbar_btn['new_meta'] = [
-                'href' => self::$currentIndex.'&addmeta&token='.$this->token,
+                'href' => static::$currentIndex.'&addmeta&token='.$this->token,
                 'desc' => $this->l('Add a new page', null, null, false),
                 'icon' => 'process-icon-new',
             ];
@@ -327,18 +330,18 @@ class AdminMetaControllerCore extends AdminController
      */
     public function addFieldRoute($routeId, $title)
     {
-        $keywords = [];
+        $keywords = array();
         foreach (Dispatcher::getInstance()->default_routes[$routeId]['keywords'] as $keyword => $data) {
-            $keywords[] = ($keyword === 'rewrite') ? '<span class="red">'.$keyword.'*</span>' : $keyword;
+            $keywords[] = ((isset($data['param'])) ? '<span class="red">'.$keyword.'*</span>' : $keyword);
         }
-
-        $this->fields_options['routes']['fields']['PS_ROUTE_'.$routeId] = [
+        $this->fields_options['routes']['fields']['PS_ROUTE_'.$routeId] = array(
             'title' =>    $title,
             'desc' => sprintf($this->l('Keywords: %s'), implode(', ', $keywords)),
             'validation' => 'isString',
-            'type' => 'textLang',
+            'type' => 'text',
             'size' => 70,
-        ];
+            'defaultValue' => Dispatcher::getInstance()->default_routes[$routeId]['rule'],
+        );
     }
 
     /**
@@ -508,8 +511,6 @@ class AdminMetaControllerCore extends AdminController
             $this->generateRobotsFile();
         } elseif (Tools::isSubmit('submitGenerateHtaccess')) {
             Tools::generateHtaccess();
-        } elseif (Tools::isSubmit('submitRegenerateUrlRewrites')) {
-            UrlRewrite::regenerateUrlRewrites();
         }
 
         if (Tools::isSubmit('robots')) {
@@ -641,7 +642,7 @@ class AdminMetaControllerCore extends AdminController
 
             fclose($writeFd);
 
-            $this->redirect_after = self::$currentIndex.'&conf=4&token='.$this->token;
+            $this->redirect_after = static::$currentIndex.'&conf=4&token='.$this->token;
         }
     }
 
@@ -752,7 +753,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteProductRule()
     {
         $this->checkAndUpdateRoute('product_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_PRODUCT]);
     }
 
     /**
@@ -761,7 +761,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteCategoryRule()
     {
         $this->checkAndUpdateRoute('category_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_CATEGORY]);
     }
 
     /**
@@ -769,7 +768,7 @@ class AdminMetaControllerCore extends AdminController
      */
     public function updateOptionPsRouteLayeredRule()
     {
-//        $this->checkAndUpdateRoute('layered_rule');
+        $this->checkAndUpdateRoute('layered_rule');
     }
 
     /**
@@ -778,7 +777,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteSupplierRule()
     {
         $this->checkAndUpdateRoute('supplier_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_SUPPLIER]);
     }
 
     /**
@@ -787,7 +785,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteManufacturerRule()
     {
         $this->checkAndUpdateRoute('manufacturer_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_MANUFACTURER]);
     }
 
     /**
@@ -796,7 +793,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteCmsRule()
     {
         $this->checkAndUpdateRoute('cms_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_CMS]);
     }
 
     /**
@@ -805,7 +801,6 @@ class AdminMetaControllerCore extends AdminController
     public function updateOptionPsRouteCmsCategoryRule()
     {
         $this->checkAndUpdateRoute('cms_category_rule');
-        UrlRewrite::regenerateUrlRewrites(null, null, [UrlRewrite::ENTITY_CMS_CATEGORY]);
     }
 
     /**
@@ -932,6 +927,7 @@ class AdminMetaControllerCore extends AdminController
     {
         $this->addFieldRoute('product_rule', $this->l('Route to products'));
         $this->addFieldRoute('category_rule', $this->l('Route to category'));
+        $this->addFieldRoute('layered_rule', $this->l('Route to category which has the "selected_filter" attribute for the "Layered Navigation" (blocklayered) module'));
         $this->addFieldRoute('supplier_rule', $this->l('Route to supplier'));
         $this->addFieldRoute('manufacturer_rule', $this->l('Route to manufacturer'));
         $this->addFieldRoute('cms_rule', $this->l('Route to CMS page'));

@@ -223,8 +223,6 @@ class SupplierCore extends ObjectModel
     public function add($autoDate = true, $nullValues = false)
     {
         if (parent::add($autoDate, $nullValues)) {
-            UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_SUPPLIER, $this->id);
-
             return true;
         }
 
@@ -242,13 +240,7 @@ class SupplierCore extends ObjectModel
             PageCache::invalidateEntity('supplier', $this->id);
         }
 
-        $return = parent::update($nullValues);
-
-        UrlRewrite::regenerateUrlRewrite(UrlRewrite::ENTITY_SUPPLIER, $this->id);
-
-        return $return;
-
-        
+        return parent::update($nullValues);
     }
 
     public function delete()
@@ -256,8 +248,6 @@ class SupplierCore extends ObjectModel
         if ('TB_PAGE_CACHE_ENABLED') {
             PageCache::invalidateEntity('supplier', $this->id);
         }
-
-        UrlRewrite::deleteUrlRewrite(UrlRewrite::ENTITY_SUPPLIER, $this->id);
 
         return parent::delete();
     }
@@ -272,14 +262,14 @@ class SupplierCore extends ObjectModel
      */
     public static function getNameById($idSupplier)
     {
-        if (!isset(self::$cache_name[$idSupplier])) {
-            self::$cache_name[$idSupplier] = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+        if (!isset(static::$cache_name[$idSupplier])) {
+            static::$cache_name[$idSupplier] = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
                 '
 			SELECT `name` FROM `'._DB_PREFIX_.'supplier` WHERE `id_supplier` = '.(int) $idSupplier
             );
         }
 
-        return self::$cache_name[$idSupplier];
+        return static::$cache_name[$idSupplier];
     }
 
     /**
