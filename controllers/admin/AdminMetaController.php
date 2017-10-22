@@ -205,14 +205,6 @@ class AdminMetaControllerCore extends AdminController
             $this->fields_options['routes']['title'] = $this->l('Schema of URLs');
             $this->fields_options['routes']['description'] = $this->l('This section enables you to change the default pattern of your links. In order to use this functionality, thirty bees\' "Friendly URL" option must be enabled, and Apache\'s URL rewriting module (mod_rewrite) must be activated on your web server.').'<br />'.$this->l('There are several available keywords for each route listed below; note that keywords with * are required!').'<br />'.$this->l('To add a keyword in your URL, use the {keyword} syntax. If the keyword is not empty, you can add text before or after the keyword with syntax {prepend:keyword:append}. For example {-hey-:meta_title} will add "-hey-my-title" in the URL if the meta title is set.');
             $this->fields_options['routes']['submit'] = ['title' => $this->l('Save')];
-            $this->fields_options['routes']['buttons'] = [
-                'regenerateUrlRewrites' => [
-                    'class' => 'btn btn-default pull-left',
-                    'title' => $this->l('Regenerate URLs'),
-                    'icon' => 'process-icon-cogs',
-                    'href' => Context::getContext()->link->getAdminLink('AdminMeta').'&submitRegenerateUrlRewrites',
-                ],
-            ];
         }
 
         // Options to generate robot.txt
@@ -703,6 +695,8 @@ class AdminMetaControllerCore extends AdminController
                 foreach ($errors as $error) {
                     $this->errors[] = sprintf('Keyword "{%1$s}" required for route "%2$s" (rule: "%3$s")', $error, $route, htmlspecialchars($rule));
                 }
+            } elseif (!$this->checkRedundantRewriteKeywords($rule)) {
+                $this->errors[] = sprintf('Rule "%1$s" is invalid. It has duplicate keywords.', htmlspecialchars($rule));
             } else {
                 if (preg_match('/}[a-zA-Z0-9-_]*{/', $rule)) {
                     // Two regexes can't be tied together with delimiters that can also occur in the regex itself
@@ -1002,5 +996,29 @@ class AdminMetaControllerCore extends AdminController
         }
 
         return $tab;
+    }
+
+    /**
+     * Check if the rule contains duplicate keywords
+     *
+     * @param string $rule
+     *
+     * @return bool
+     *
+     * @since 1.0.2 To prevent duplicate keywords in rules
+     */
+    protected function checkRedundantRewriteKeywords($rule)
+    {
+        preg_match_all('#\{([^{}]*:)?([a-zA-Z]+)(:[^{}]*)?\}#', $rule, $matches);
+
+        if (isset($matches[2]) && is_array($matches[2])) {
+            foreach (array_count_values($matches[2]) as $val => $c) {
+                if ($c > 1) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

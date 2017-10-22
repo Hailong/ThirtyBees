@@ -44,14 +44,14 @@ class HTMLTemplateDeliverySlipCore extends HTMLTemplate
     // @codingStandardsIgnoreEnd
 
     /**
-     * @param OrderInvoice $orderInvoice
-     * @param Smarty       $smarty
-     * @param bool         $bulkMode
+     * @param OrderInvoiceCore $orderInvoice
+     * @param Smarty           $smarty
+     * @param bool             $bulkMode
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
-    public function __construct(OrderInvoice $orderInvoice, Smarty $smarty, $bulkMode = false)
+    public function __construct(OrderInvoiceCore $orderInvoice, Smarty $smarty, $bulkMode = false)
     {
         $this->order_invoice = $orderInvoice;
         $this->order = new Order($this->order_invoice->id_order);
@@ -70,7 +70,7 @@ class HTMLTemplateDeliverySlipCore extends HTMLTemplate
         // header informations
         $this->date = Tools::displayDate($orderInvoice->date_add);
         $prefix = Configuration::get('PS_DELIVERY_PREFIX', Context::getContext()->language->id);
-        $this->title = sprintf(HTMLTemplateDeliverySlip::l('%1$s%2$06d'), $prefix, $this->order_invoice->delivery_number);
+        $this->title = sprintf(static::l('%1$s%2$06d'), $prefix, $this->order_invoice->delivery_number);
 
         // footer informations
         $this->shop = new Shop((int) $this->order->id_shop);
@@ -87,7 +87,7 @@ class HTMLTemplateDeliverySlipCore extends HTMLTemplate
     public function getHeader()
     {
         $this->assignCommonHeaderData();
-        $this->smarty->assign(['header' => HTMLTemplateDeliverySlip::l('Delivery')]);
+        $this->smarty->assign(['header' => static::l('Delivery')]);
 
         return $this->smarty->fetch($this->getTemplate('header'));
     }
@@ -117,7 +117,7 @@ class HTMLTemplateDeliverySlipCore extends HTMLTemplate
         $orderDetails = $this->order_invoice->getProducts();
         if (Configuration::get('PS_PDF_IMG_DELIVERY')) {
             foreach ($orderDetails as &$orderDetail) {
-                if ($orderDetail['image'] != null) {
+                if ($orderDetail['image'] instanceof Image) {
                     $name = 'product_mini_'.(int) $orderDetail['product_id'].(isset($orderDetail['product_attribute_id']) ? '_'.(int) $orderDetail['product_attribute_id'] : '').'.jpg';
                     $path = _PS_PROD_IMG_DIR_.$orderDetail['image']->getExistingImgPath().'.jpg';
 

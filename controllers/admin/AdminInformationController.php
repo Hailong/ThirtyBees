@@ -170,9 +170,26 @@ class AdminInformationControllerCore extends AdminController
         $paramsRequiredResults = ConfigurationTest::check(ConfigurationTest::getDefaultTests());
         $paramsOptionalResults = ConfigurationTest::check(ConfigurationTest::getDefaultTestsOp());
 
-        $failRequired = in_array('fail', $paramsRequiredResults);
+        $failRequired = false;
+        foreach ($paramsRequiredResults as $key => $result) {
+            if ($result !== 'ok') {
+                $failRequired = true;
+                $testsErrors[$key] = $result;
+                // Establish retrocompatibility with templates.
+                $paramsRequiredResults[$key] = 'fail';
+            }
+        }
+        $failOptional = false;
+        foreach ($paramsOptionalResults as $key => $result) {
+            if ($result !== 'ok') {
+                $failOptional = true;
+                $testsErrors[$key] = $result;
+                // Establish retrocompatibility with templates.
+                $paramsOptionalResults[$key] = 'fail';
+            }
+        }
 
-        if ($failRequired && $paramsRequiredResults['Files'] != 'ok') {
+        if ($failRequired && $paramsRequiredResults['Files'] !== 'ok') {
             $tmp = ConfigurationTest::testFiles(true);
             if (is_array($tmp) && count($tmp)) {
                 $testsErrors['Files'] = $testsErrors['Files'].'<br/>('.implode(', ', $tmp).')';
@@ -181,18 +198,11 @@ class AdminInformationControllerCore extends AdminController
 
         $results = [
             'failRequired'  => $failRequired,
-            'testsErrors'   => $testsErrors,
             'testsRequired' => $paramsRequiredResults,
+            'failOptional'  => $failOptional,
+            'testsOptional' => $paramsOptionalResults,
+            'testsErrors'   => $testsErrors,
         ];
-
-        $results = array_merge(
-            $results,
-            [
-                'failOptional'  => in_array('fail', $paramsOptionalResults),
-                'testsOptional' => $paramsOptionalResults,
-            ]
-        );
-
 
         return $results;
     }

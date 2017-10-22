@@ -208,10 +208,9 @@ abstract class ModuleCore
                 // Join clause is done to check if the module is activated in current shop context
                 $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
                     (new DbQuery())
-                        ->select('m.`id_module`, m.`name`, m.`id_module` AS `mshop`')
+                        ->select('m.`id_module`, m.`name`, ms.`id_module` AS `mshop`')
                         ->from('module', 'm')
-                        ->leftJoin('module_shop', 'ms', 'ms.`id_module` = m.`id_module`')
-                        ->where('ms.`id_shop` = '.(int) $idShop)
+                        ->leftJoin('module_shop', 'ms', 'ms.`id_module` = m.`id_module` AND ms.`id_shop` = '.(int) $idShop)
                 );
                 foreach ($result as $row) {
                     static::$modules_cache[$row['name']] = $row;
@@ -230,15 +229,6 @@ abstract class ModuleCore
                     }
                 }
                 $this->_path = __PS_BASE_URI__.'modules/'.$this->name.'/';
-            } else {
-                // Get the module id from the database
-                $this->id = (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
-                    (new DbQuery())
-                        ->select('`id_module`')
-                        ->from('module')
-                        ->where('`name` = \''.pSQL($this->name).'\'')
-                );
-
             }
             if (!$this->context->controller instanceof Controller) {
                 static::$modules_cache = null;
@@ -839,8 +829,7 @@ abstract class ModuleCore
                 ->select('m.`name`, m.`version`, mp.`interest`, module_shop.`enable_device`')
                 ->from('module', 'm')
                 ->join(Shop::addSqlAssociation('module', 'm'))
-                ->leftJoin('module_preference', 'mp', 'mp.`module` = m.`name`')
-                ->where('mp.`id_employee` = '.(int) $idEmployee)
+                ->leftJoin('module_preference', 'mp', 'mp.`module` = m.`name` AND mp.`id_employee` = '.(int) $idEmployee)
         );
         foreach ($result as $row) {
             $modulesInstalled[$row['name']] = $row;
@@ -1355,20 +1344,21 @@ abstract class ModuleCore
         $list = Shop::getContextListShopID();
 
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
-            'SELECT DISTINCT m.`id_module`, h.`id_hook`, m.`name`, hm.`position`
-		FROM `'._DB_PREFIX_.'module` m
-		'.($frontend ? 'LEFT JOIN `'._DB_PREFIX_.'module_country` mc ON (m.`id_module` = mc.`id_module` AND mc.id_shop = '.(int) $context->shop->id.')' : '').'
-		'.($frontend && $useGroups ? 'INNER JOIN `'._DB_PREFIX_.'module_group` mg ON (m.`id_module` = mg.`id_module` AND mg.id_shop = '.(int) $context->shop->id.')' : '').'
-		'.($frontend && isset($context->customer) && $useGroups ? 'INNER JOIN `'._DB_PREFIX_.'customer_group` cg on (cg.`id_group` = mg.`id_group`AND cg.`id_customer` = '.(int) $context->customer->id.')' : '').'
-		LEFT JOIN `'._DB_PREFIX_.'hook_module` hm ON hm.`id_module` = m.`id_module`
-		LEFT JOIN `'._DB_PREFIX_.'hook` h ON hm.`id_hook` = h.`id_hook`
-		WHERE h.`name` = \''.pSQL($hookPayment).'\'
-		'.(isset($billing) && $frontend ? 'AND mc.id_country = '.(int) $billing->id_country : '').'
-		AND (SELECT COUNT(*) FROM '._DB_PREFIX_.'module_shop ms WHERE ms.id_module = m.id_module AND ms.id_shop IN('.implode(', ', $list).')) = '.count($list).'
-		AND hm.id_shop IN('.implode(', ', $list).')
-		'.((count($groups) && $frontend && $useGroups) ? 'AND (mg.`id_group` IN ('.implode(', ', $groups).'))' : '').'
-		GROUP BY hm.id_hook, hm.id_module
-		ORDER BY hm.`position`, m.`name` DESC'
+            (new DbQuery())
+                ->select('DISTINCT m.`id_module`, h.`id_hook`, m.`name`, hm.`position`')
+                ->from('module', 'm')
+                ->join($frontend ? 'LEFT JOIN `'._DB_PREFIX_.'module_country` mc ON (m.`id_module` = mc.`id_module` AND mc.id_shop = '.(int) $context->shop->id.')' : '')
+                ->join($frontend && $useGroups ? 'INNER JOIN `'._DB_PREFIX_.'module_group` mg ON (m.`id_module` = mg.`id_module` AND mg.id_shop = '.(int) $context->shop->id.')' : '')
+                ->join($frontend && isset($context->customer) && $useGroups ? 'INNER JOIN `'._DB_PREFIX_.'customer_group` cg on (cg.`id_group` = mg.`id_group`AND cg.`id_customer` = '.(int) $context->customer->id.')' : '')
+                ->leftJoin('hook_module', 'hm', 'hm.`id_module` = m.`id_module`')
+                ->leftJoin('hook', 'h', 'hm.`id_hook` = h.`id_hook`')
+                ->where('h.`name` = \''.pSQL($hookPayment).'\'')
+                ->where((isset($billing) && $frontend ? 'mc.`id_country` = '.(int) $billing->id_country : ''))
+                ->where('(SELECT COUNT(*) FROM '._DB_PREFIX_.'module_shop ms WHERE ms.id_module = m.id_module AND ms.id_shop IN('.implode(', ', $list).')) = '.count($list))
+                ->where('hm.`id_shop` IN('.implode(', ', $list).')')
+                ->where((count($groups) && $frontend && $useGroups) ? 'mg.`id_group` IN ('.implode(', ', $groups).')' : '')
+                ->groupBy('hm.`id_hook`, hm.`id_module`')
+                ->orderBy('hm.`position`, m.`name` DESC')
         );
     }
 
@@ -1387,7 +1377,7 @@ abstract class ModuleCore
     }
 
     /**
-     * @param $moduleName
+     * @param string $moduleName
      *
      * @return bool|null
      *
@@ -1439,6 +1429,8 @@ abstract class ModuleCore
 
     /**
      * Insert module into datable
+     *
+     * @return bool
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
@@ -1733,7 +1725,11 @@ abstract class ModuleCore
                 if ($overrideClass->hasMethod($method->getName())) {
                     $methodOverride = $overrideClass->getMethod($method->getName());
                     if (preg_match('/module: (.*)/ism', $overrideFile[$methodOverride->getStartLine() - 5], $name) && preg_match('/date: (.*)/ism', $overrideFile[$methodOverride->getStartLine() - 4], $date) && preg_match('/version: ([0-9.]+)/ism', $overrideFile[$methodOverride->getStartLine() - 3], $version)) {
-                        throw new Exception(sprintf(Tools::displayError('The method %1$s in the class %2$s is already overridden by the module %3$s version %4$s at %5$s.'), $method->getName(), $classname, $name[1], $version[1], $date[1]));
+                        if ($name[1] !== $this->name || $version[1] !== $this->version) {
+                            throw new Exception(sprintf(Tools::displayError('The method %1$s in the class %2$s is already overridden by the module %3$s version %4$s at %5$s.'), $method->getName(), $classname, $name[1], $version[1], $date[1]));
+                        }
+
+                        continue;
                     }
                     throw new Exception(sprintf(Tools::displayError('The method %1$s in the class %2$s is already overridden.'), $method->getName(), $classname));
                 }
@@ -2510,8 +2506,8 @@ abstract class ModuleCore
     /**
      * Connect module to a hook
      *
-     * @param string $hookName Hook name
-     * @param array  $shopList List of shop linked to the hook (if null, link hook to all shops)
+     * @param string|string[] $hookName Hook name or an array with hook names
+     * @param array           $shopList List of shop linked to the hook (if null, link hook to all shops)
      *
      * @return bool result
      * @throws PrestaShopException

@@ -1048,7 +1048,7 @@ class AdminControllerCore extends Controller
             $selectShop = ', shop.name as shop_name ';
             $joinShop = ' LEFT JOIN '._DB_PREFIX_.$this->shopLinkType.' shop
 							ON a.id_'.$this->shopLinkType.' = shop.id_'.$this->shopLinkType;
-            $whereShop = Shop::addSqlRestriction($this->shopShareDatas, 'a', $this->shopLinkType);
+            $whereShop = Shop::addSqlRestriction($this->shopShareDatas, 'a');
         }
 
         if ($this->multishop_context && Shop::isTableAssociated($this->table) && !empty($this->className)) {
@@ -2707,9 +2707,7 @@ class AdminControllerCore extends Controller
 
         $this->addPageHeaderToolBarModulesListButton();
 
-        $this->context->smarty->assign(
-            'help_link', 'http://help.prestashop.com/'.Language::getIsoById($this->context->employee->id_lang).'/doc/'.Tools::getValue('controller').'?version='._PS_VERSION_.'&country='.Language::getIsoById($this->context->employee->id_lang)
-        );
+        $this->context->smarty->assign('help_link', '');
     }
 
     /**

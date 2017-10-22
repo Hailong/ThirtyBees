@@ -718,12 +718,10 @@ class ToolsCore
     }
 
     /**
-     * @param $number
-     * @param $currency
+     * @param float    $number
+     * @param Currency $currency
      *
      * @return string
-     *
-     * @todo    : move to intl
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
@@ -1183,7 +1181,7 @@ class ToolsCore
             $amount *= $currencyTo->conversion_rate;
         }
         if ($round) {
-            $amount = Tools::ps_round($amount, _PS_PRICE_COMPUTE_PRECISION_);
+            $amount = Tools::ps_round($amount, _TB_PRICE_DATABASE_PRECISION_);
         }
 
         return $amount;

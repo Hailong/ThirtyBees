@@ -485,7 +485,7 @@ abstract class DbCore
             return true;
         }
 
-        if ($addPrefix) {
+        if ($addPrefix && _DB_PREFIX_ && strncmp(_DB_PREFIX_, $table, strlen(_DB_PREFIX_)) !== 0) {
             $table = _DB_PREFIX_.$table;
         }
 
@@ -572,7 +572,7 @@ abstract class DbCore
             return true;
         }
 
-        if ($addPrefix) {
+        if ($addPrefix && strncmp(_DB_PREFIX_, $table, strlen(_DB_PREFIX_)) !== 0) {
             $table = _DB_PREFIX_.$table;
         }
 
@@ -612,7 +612,7 @@ abstract class DbCore
      */
     public function delete($table, $where = '', $limit = 0, $useCache = true, $addPrefix = true)
     {
-        if (_DB_PREFIX_ && !preg_match('#^'._DB_PREFIX_.'#i', $table) && $addPrefix) {
+        if ($addPrefix && strncmp(_DB_PREFIX_, $table, strlen(_DB_PREFIX_)) !== 0) {
             $table = _DB_PREFIX_.$table;
         }
 
@@ -645,9 +645,9 @@ abstract class DbCore
     /**
      * Executes return the result of $sql as array
      *
-     * @param string|DbQuery $sql   Query to execute
-     * @param bool           $array Return an array instead of a result object (deprecated since 1.5.0.1, use query method instead)
-     * @param bool           $useCache
+     * @param string|DbQuery $sql      Query to execute
+     * @param bool           $array    Return an array instead of a result object (deprecated since 1.5.0.1, use query method instead)
+     * @param bool           $useCache Deprecated, the internal query cache is no longer used
      *
      * @return array|false|null|PDOStatement
      * @throws PrestaShopDatabaseException
@@ -676,7 +676,6 @@ abstract class DbCore
             $result = false;
         } else {
             if (!$array) {
-                $useCache = false;
                 $result = $this->result;
             } else {
                 $result = $this->getAll($this->result);
@@ -693,7 +692,7 @@ abstract class DbCore
      * This function automatically adds "LIMIT 1" to the query
      *
      * @param string|DbQuery $sql      the select query (without "LIMIT 1")
-     * @param bool           $useCache Find it in cache first
+     * @param bool           $useCache Deprecated, the internal query cache is no longer used
      *
      * @return array|bool|object|null
      */
@@ -727,7 +726,7 @@ abstract class DbCore
      * Returns a value from the first row, first column of a SELECT query
      *
      * @param string|DbQuery $sql
-     * @param bool           $useCache
+     * @param bool           $useCache Deprecated, the internal query cache is no longer used
      *
      * @return string|false|null
      */
@@ -751,13 +750,25 @@ abstract class DbCore
      */
     public function numRows()
     {
+        if (!$this->last_cached && $this->result) {
+            $nrows = $this->_numRows($this->result);
+            if ($this->is_cache_enabled) {
+                Cache::getInstance()->set($this->last_query_hash.'_nrows', $nrows);
+            }
+
+            return $nrows;
+        } elseif ($this->is_cache_enabled && $this->last_cached) {
+            return Cache::getInstance()->get($this->last_query_hash.'_nrows');
+        }
+
+        return 0;
     }
 
     /**
      * Executes a query
      *
      * @param string|DbQuery $sql
-     * @param bool           $useCache
+     * @param bool           $useCache Deprecated, the internal query cache is no longer used
      *
      * @return bool|PDOStatement
      * @throws PrestaShopDatabaseException
@@ -806,6 +817,7 @@ abstract class DbCore
      *
      * @param string $string SQL data which will be injected into SQL query
      * @param bool   $htmlOk Does data contain HTML code ? (optional)
+     * @param bool   $bqSql  Escape backquotes
      *
      * @return string Sanitized data
      */

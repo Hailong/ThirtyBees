@@ -74,7 +74,7 @@ function formatCurrency(price, currencyFormat, currencySign, currencyBlank) {
     currency = window.currency.iso_code;
   }
 
-  if (typeof window.currencyModes[currency] !== 'undefined' && typeof window.currencyModes[currency]) {
+  if (typeof window.currencyModes[currency] !== 'undefined' && window.currencyModes[currency]) {
     price = parseFloat(price).toFixed(10);
     price = ps_round(price, priceDisplayPrecision);
     var locale = document.documentElement.lang;
@@ -661,11 +661,11 @@ function getStorageAvailable() {
 }
 
 function getBrowserLocale() {
-  if (navigator.languages != undefined) {
+  if (typeof navigator.languages !== 'undefined') {
     return navigator.languages[0];
-  } else {
-    return navigator.language;
   }
+
+  return navigator.language;
 }
 
 $(document).ready(function () {

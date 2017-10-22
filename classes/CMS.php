@@ -95,9 +95,8 @@ class CMSCore extends ObjectModel
             (new DbQuery())
                 ->select('c.`id_cms`, cl.`link_rewrite`, cl.`meta_title`')
                 ->from('cms', 'c')
-                ->leftJoin('cms_lang', 'cl', 'c.`id_cms` = cl.`id_cms`')
+                ->leftJoin('cms_lang', 'cl', 'c.`id_cms` = cl.`id_cms` AND cl.`id_lang` = '.(int) $idLang)
                 ->join(Shop::addSqlAssociation('cms', 'c'))
-                ->where('cl.`id_lang` = '.(int) $idLang)
                 ->where($selection !== null ? 'c.`id_cms` IN ('.implode(',', array_map('intval', $selection)).')' : '')
                 ->where($active ? 'c.`active` = 1 ' : '')
                 ->groupBy('c.`id_cms`')
@@ -164,22 +163,22 @@ class CMSCore extends ObjectModel
 
         if ($idLang) {
             if ($idShop) {
-                $sql->innerJoin('cms_lang', 'l', 'c.id_cms = l.id_cms AND l.id_lang = '.(int) $idLang.' AND l.id_shop = '.(int) $idShop);
+                $sql->innerJoin('cms_lang', 'l', 'c.`id_cms` = l.`id_cms` AND l.`id_lang` = '.(int) $idLang.' AND l.`id_shop` = '.(int) $idShop);
             } else {
-                $sql->innerJoin('cms_lang', 'l', 'c.id_cms = l.id_cms AND l.id_lang = '.(int) $idLang);
+                $sql->innerJoin('cms_lang', 'l', 'c.`id_cms` = l.`id_cms` AND l.`id_lang` = '.(int) $idLang);
             }
         }
 
         if ($idShop) {
-            $sql->innerJoin('cms_shop', 'cs', 'c.id_cms = cs.id_cms AND cs.id_shop = '.(int) $idShop);
+            $sql->innerJoin('cms_shop', 'cs', 'c.`id_cms` = cs.`id_cms` AND cs.`id_shop` = '.(int) $idShop);
         }
 
         if ($active) {
-            $sql->where('c.active = 1');
+            $sql->where('c.`active` = 1');
         }
 
         if ($idCmsCategory) {
-            $sql->where('c.id_cms_category = '.(int) $idCmsCategory);
+            $sql->where('c.`id_cms_category` = '.(int) $idCmsCategory);
         }
 
         $sql->orderBy('position');

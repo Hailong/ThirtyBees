@@ -98,8 +98,7 @@ class AttributeGroupCore extends ObjectModel
                 ->select('*')
                 ->from('attribute', 'a')
                 ->join(Shop::addSqlAssociation('attribute', 'a'))
-                ->leftJoin('attribute_lang', 'al', 'a.`id_attribute` = al.`id_attribute`')
-                ->where('al.`id_lang` = '.(int) $idLang)
+                ->leftJoin('attribute_lang', 'al', 'a.`id_attribute` = al.`id_attribute` al.`id_lang` = '.(int) $idLang)
                 ->where('a.`id_attribute_group` = '.(int) $idAttributeGroup)
                 ->orderBy('`position` ASC')
         );
@@ -123,8 +122,7 @@ class AttributeGroupCore extends ObjectModel
                 ->select('DISTINCT agl.`name`, ag.*, agl.*')
                 ->from('attribute_group', 'ag')
                 ->join(Shop::addSqlAssociation('attribute_group', 'ag'))
-                ->leftJoin('attribute_group_lang', 'agl', 'ag.`id_attribute_group` = agl.`id_attribute_group`')
-                ->where('agl.`id_lang` = '.(int) $idLang)
+                ->leftJoin('attribute_group_lang', 'agl', 'ag.`id_attribute_group` = agl.`id_attribute_group` AND agl.`id_lang` = '.(int) $idLang)
                 ->orderBy('agl.`name` ASC')
         );
     }
@@ -167,7 +165,7 @@ class AttributeGroupCore extends ObjectModel
     {
         $position = (int) Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
             (new DbQuery())
-                ->select('MAX(`position`')
+                ->select('MAX(`position`)')
                 ->from('attribute_group')
         );
 
@@ -262,7 +260,7 @@ class AttributeGroupCore extends ObjectModel
             if (count($toRemove)) {
                 if (!Db::getInstance()->delete('attribute_lang', '`id_attribute` IN ('.implode(',', $toRemove).')')
                     || !Db::getInstance()->delete('attribute_shop', '`id_attribute` IN ('.implode(',', $toRemove).')')
-                    || !Db::getInstance()->delete('attribute`', '`id_attribute_group` = '.(int) $this->id)
+                    || !Db::getInstance()->delete('attribute', '`id_attribute_group` = '.(int) $this->id)
                 ) {
                     return false;
                 }
@@ -436,7 +434,7 @@ class AttributeGroupCore extends ObjectModel
             [
                 'position' => ['type' => 'sql', 'value' => '`position` '.($way ? '- 1' : '+ 1')],
             ],
-            '`position` = '.($way ? '> '.(int) $movedGroupAttribute['position'].' AND `position` <= '.(int) $position : '< '.(int) $movedGroupAttribute['position'].' AND `position` >= '.(int) $position)
+            '`position` '.($way ? '> '.(int) $movedGroupAttribute['position'].' AND `position` <= '.(int) $position : '< '.(int) $movedGroupAttribute['position'].' AND `position` >= '.(int) $position)
         ) && Db::getInstance()->update(
             'attribute_group',
             [

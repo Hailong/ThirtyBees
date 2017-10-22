@@ -126,56 +126,54 @@ html
 			right: 0 !important
 			left: auto !important
 	ul.anchor
-		float: right
+		float: right !important
 		&.nbr_steps_4
 			li
-				float: right
+				float: right !important
 		&.nbr_steps_5
 			li
-				float: right
+				float: right !important
 	li
 		a
-			margin: 0 0 0 16px
+			margin: 0 0 0 16px !important
 			.stepNumber
-				float: right
+				float: right !important
 				margin-left: 3px
-				margin-right: 0
+				margin-right: 0 !important
 			.stepDesc
-				text-align: right
+				text-align: right !important
 			.chevron
-				border-right: 14px solid white
-				border-left: 0
+				border-right: 14px solid white !important
+				border-left: 0 !important
 				left: -16px
-				right: auto
+				right: auto !important
 				&:after
 					border-right: 14px solid #ccc
-					border-left: 0
+					border-left: 0 !important
 					left: 2px
-					right: auto
-		a.disabled
-			.chevron:after
-				border-right: 14px solid #ccc
-				border-left: 0
-		a.selected
-			.chevron:after
-				border-right: 14px solid $main-color
-				border-left: 0
-		a.done
-			.chevron:after
-				border-right: 14px solid $brand-success
-				border-left: 0
-	.msgBox
-		float: right
-		margin: 4px 5px 0 0
-		.content
-			float: right
-	#carrier_logo_block
-		left: 10px
-		right: auto
-	.actionBar a
-		float: left
-		margin-left: 10px
-		margin-right: 0
+					right: auto !important
+			&.disabled
+				.chevron:after
+					border-right: 14px solid #ccc
+					border-left: 0 !important
+			&.selected
+				.chevron:after
+					border-right: 14px solid $main-color
+					border-left: 0 !important
+			&.done
+				.chevron:after
+					border-right: 14px solid $brand-success
+					border-left: 0 !important
+	.actionBar
+		.msgBox
+			float: right !important
+			margin: 4px 5px 0 0 !important
+			.content
+				float: right !important
+		a
+			float: left !important
+			margin-left: 10px
+			margin-right: 0 !important
 
 // Tinymce
 .mce-container
@@ -201,3 +199,33 @@ html
 	*
 		text-align: right
 		direction: rtl
+
+// Header
+#employee_links.dropdown-menu
+	left: 0 !important
+	right: auto !important
+
+// Date range picker
+#datepicker
+	.daterangepicker
+		td
+			&.start-selected:not(.old):not(.new):not(.end-selected)
+				@include border-left-radius(0)
+				@include border-right-radius(15px)
+				&.range-compare
+					@include border-right-radius(0)
+			&.end-selected:not(.old):not(.new):not(.start-selected)
+				@include border-right-radius(0)
+				@include border-left-radius(15px)
+				&.range-compare
+					@include border-left-radius(0)
+			&.start-selected-compare:not(.old):not(.new):not(.end-selected-compare)
+				@include border-left-radius(0)
+				@include border-right-radius(15px)
+				&.range
+					@include border-right-radius(0)
+			&.end-selected-compare:not(.old):not(.new):not(.start-selected-compare)
+				@include border-right-radius(0)
+				@include border-left-radius(15px)
+				&.range
+					@include border-left-radius(0)

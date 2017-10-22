@@ -39,27 +39,23 @@ class HTMLTemplateSupplyOrderFormCore extends HTMLTemplate
     // @codingStandardsIgnoreStart
     /** @var SupplyOrder $supply_order */
     public $supply_order;
-
     /** @var Warehouse $warehouse */
     public $warehouse;
-
     /** @var Address $address_warehouse */
     public $address_warehouse;
-
     /** @var Address $address_supplier */
     public $address_supplier;
-
     /** @var Context $context */
     public $context;
     // @codingStandardsIgnoreEnd
 
     /**
-     * @param SupplyOrder $supplyOrder
-     * @param Smarty      $smarty
+     * @param SupplyOrderCore $supplyOrder
+     * @param Smarty          $smarty
      *
      * @throws PrestaShopException
      */
-    public function __construct(SupplyOrder $supplyOrder, Smarty $smarty)
+    public function __construct(SupplyOrderCore $supplyOrder, Smarty $smarty)
     {
         $this->supply_order = $supplyOrder;
         $this->smarty = $smarty;
@@ -68,11 +64,11 @@ class HTMLTemplateSupplyOrderFormCore extends HTMLTemplate
         $this->address_warehouse = new Address((int) $this->warehouse->id_address);
         $this->address_supplier = new Address(Address::getAddressIdBySupplierId((int) $supplyOrder->id_supplier));
 
-        // header informations
+        // Header informations
         $this->date = Tools::displayDate($supplyOrder->date_add);
-        $this->title = HTMLTemplateSupplyOrderForm::l('Supply order form');
+        $this->title = static::l('Supply order form');
 
-        $this->shop = new Shop((int) $this->order->id_shop);
+        $this->shop = new Shop((int) $this->supply_order->id_shop);
     }
 
     /**
@@ -83,7 +79,7 @@ class HTMLTemplateSupplyOrderFormCore extends HTMLTemplate
      */
     public function getContent()
     {
-        $supplyOrderDetails = $this->supply_order->getEntriesCollection((int) $this->supply_order->id_lang);
+        $supplyOrderDetails = $this->supply_order->getEntriesCollection();
         $this->roundSupplyOrderDetails($supplyOrderDetails);
 
         $this->roundSupplyOrder($this->supply_order);
@@ -170,16 +166,12 @@ class HTMLTemplateSupplyOrderFormCore extends HTMLTemplate
     protected function getTaxOrderSummary()
     {
         $query = new DbQuery();
-        $query->select(
-            '
-			SUM(price_with_order_discount_te) as base_te,
-			tax_rate,
-			SUM(tax_value_with_order_discount) as total_tax_value
-		'
-        );
+        $query->select('SUM(`price_with_order_discount_te`) AS `base_te`');
+        $query->select('`tax_rate`');
+        $query->select('SUM(`tax_value_with_order_discount`) AS `total_tax_value`');
         $query->from('supply_order_detail');
-        $query->where('id_supply_order = '.(int) $this->supply_order->id);
-        $query->groupBy('tax_rate');
+        $query->where('`id_supply_order` = '.(int) $this->supply_order->id);
+        $query->groupBy('`tax_rate`');
 
         $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($query);
 

@@ -143,7 +143,7 @@ class AdminModulesControllerCore extends AdminController
             if (Module::isInstalled('tbupdater')) {
                 $this->warnings[] = $this->l('The thirty bees updater module has not been enabled. Make sure you enable the module to keep thirty bees updated.');
             } else {
-                $this->warnings[] = sprintf($this->l('The thirty bees updater module has not been install. Install the %sthirty bees updater%s to keep thirty bees updated.'), '<a href="https://thirtybees.com/updates" target="_blank">', '</a>');
+                $this->warnings[] = sprintf($this->l('The thirty bees updater module has not been installed. Install the %sthirty bees updater%s to keep thirty bees updated.'), '<a href="https://thirtybees.com/updates" target="_blank">', '</a>');
             }
         }
     }
@@ -262,8 +262,6 @@ class AdminModulesControllerCore extends AdminController
 
             return;
         }
-
-        $this->meta_title = 'Modules';
 
         // If we are on a module configuration, no need to load all modules
         if (Tools::getValue('configure') != '') {
@@ -1197,7 +1195,8 @@ class AdminModulesControllerCore extends AdminController
             $zip->open($file);
             $dirs = [];
             for ($i = 0; $i < $zip->numFiles; $i++) {
-                $filePath = explode(DIRECTORY_SEPARATOR, $zip->getNameIndex($i));
+                // Zip = *NIX style
+                $filePath = explode('/', $zip->getNameIndex($i));
 
                 if (!empty($filePath)) {
                     $dirs[] = $filePath[0];

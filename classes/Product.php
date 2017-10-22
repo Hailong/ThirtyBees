@@ -125,13 +125,13 @@ class ProductCore extends ObjectModel
     public $supplier_reference;
     /** @var string Location */
     public $location;
-    /** @var string Width in default width unit */
+    /** @var float Width in default width unit */
     public $width = 0;
-    /** @var string Height in default height unit */
+    /** @var float Height in default height unit */
     public $height = 0;
-    /** @var string Depth in default depth unit */
+    /** @var float Depth in default depth unit */
     public $depth = 0;
-    /** @var string Weight in default weight unit */
+    /** @var float Weight in default weight unit */
     public $weight = 0;
     /** @var string Ean-13 barcode */
     public $ean13;
@@ -1673,6 +1673,18 @@ class ProductCore extends ObjectModel
         }
 
         // Datas
+        if (!isset($row['id_category_default']) && $row['id_category_default']) {
+            $row['id_category_default'] = (int) Db::getInstance()->getValue(
+                (new DbQuery())
+                    ->select('product_shop.`id_category_default`')
+                    ->from('product', 'p')
+                    ->join(Shop::addSqlAssociation('product', 'p'))
+                    ->where('p.`id_product` = '.(int) $row['id_product'])
+            );
+            if (!$row['id_category_default']) {
+                $row['id_category_default'] = Context::getContext()->shop->id_category;
+            }
+        }
         $row['category'] = Category::getLinkRewrite((int) $row['id_category_default'], (int) $idLang);
         $row['link'] = $context->link->getProductLink((int) $row['id_product'], $row['link_rewrite'], $row['category'], $row['ean13']);
 
@@ -2644,7 +2656,14 @@ class ProductCore extends ObjectModel
 
         foreach ($result as $row) {
             $idProductAttributeOld = (int) $row['id_product_attribute'];
-            if (!isset($combinations[$idProductAttributeOld])) {
+	        $quantityAttributeOld = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+		        (new DbQuery())
+			        ->select('`quantity`')
+			        ->from('stock_available')
+			        ->where('`id_product` = '.(int) $idProductOld)
+			        ->where('`id_product_attribute` = '.(int) $row['id_product_attribute'])
+	        );
+	        if (!isset($combinations[$idProductAttributeOld])) {
                 $idCombination = null;
                 $idShop = null;
                 $result2 = Db::getInstance()->executeS(
@@ -2671,6 +2690,9 @@ class ProductCore extends ObjectModel
             $return &= $combination->save();
 
             $idProductAttributeNew = (int) $combination->id;
+
+	        // Set stock quantity
+	        StockAvailable::setQuantity((int) $idProductNew, $idProductAttributeNew, (int) $quantityAttributeOld, $idShop);
 
             if ($resultImages = Product::_getAttributeImageAssociations($idProductAttributeOld)) {
                 $combinationImages['old'][$idProductAttributeOld] = $resultImages;
@@ -5547,13 +5569,15 @@ class ProductCore extends ObjectModel
             return 0;
         }
 
-        return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
-            '
-			SELECT COUNT(*)
-			FROM `'._DB_PREFIX_.'product_attribute` pa
-			'.Shop::addSqlAssociation('product_attribute', 'pa').'
-			WHERE pa.`id_product` = '.(int) $this->id
-        );
+	    $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+		    (new DbQuery())
+			    ->select('COUNT(*)')
+			    ->from('product_attribute', 'pa')
+			    ->join(Shop::addSqlAssociation('product_attribute', 'pa'))
+			    ->where('pa.`id_product` = '.(int) $this->id)
+	    );
+
+        return (int) $result;
     }
 
     /**

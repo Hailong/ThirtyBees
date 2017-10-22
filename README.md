@@ -1,6 +1,7 @@
 # thirty bees 
 [![Build Status](https://travis-ci.org/thirtybees/thirtybees.svg?branch=master)](https://travis-ci.org/thirtybees/thirtybees)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/thirtybees/thirtybees/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/thirtybees/thirtybees/?branch=master)
+[![Crowdin](https://d322cqt584bo4o.cloudfront.net/thirty-bees/localized.svg)](https://crowdin.com/project/thirty-bees)
 [![Gitter](https://img.shields.io/gitter/room/thirtybees/General.svg)](https://gitter.im/thirtybees/General)
 
 thirty bees is an open-source fork of PrestaShop 1.6. Our aim with this fork is to provide a feature set that merchants need. We are rewriting a lot of the core modules and cleaning up the legacy code. We aim to provide a stable, feature-rich e-commerce platform to grow businesses.  
@@ -31,8 +32,8 @@ Native modules will be refactored to remove legacy code. Code that supports prev
 
 **Rewritten modules:**
 
-* PayPal will totally be rewritten
-* Authorize.net will be refactored
+* PayPal has been rewritten
+* Authorize.net has been refactored
 
 **New native modules:**
 
@@ -79,8 +80,10 @@ $ composer install
 ```
 - Then install the software as usual, using either a web browser (https://example.com/install-dev) 
 - Or install via command line 
-``` php /install-dev/index_cli.php```
-    - Arguments available:
+```shell
+$  php install-dev/index_cli.php --newsletter=1 --language=en --country=us --domain=thirty.bees:8888 --db_name=thirtybees --db_create=1 --name=thirtybees --email=test@thirty.bees --firstname=thirty --lastname=bees --password=thirtybees
+```
+- Arguments available:
 ```
 --step          all / database,fixtures,theme,modules,addons_modules    (Default: all)
 --language      Language iso code                                       (Default: en)

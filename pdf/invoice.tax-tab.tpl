@@ -67,8 +67,8 @@
 						{/if}
 					</td>
 
-					<td class="center white">
-						{$line.rate} %
+					<td class="right white">
+						{$line.rate|floatval} %
 					</td>
 
 					{if $display_tax_bases_in_breakdowns}

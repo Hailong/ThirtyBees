@@ -370,6 +370,7 @@ class LanguageCore extends ObjectModel
                     ->from('lang', 'l')
                     ->innerJoin('lang_shop', 'ls', 'ls.`id_lang` = l.`id_lang`')
                     ->where('ls.`id_shop` = '.(int) $idShop)
+                    ->where('l.`active` = 1')
             );
         }
 
@@ -838,6 +839,7 @@ class LanguageCore extends ObjectModel
     public static function _copyNoneFlag($id, $iso = null)
     {
         if ($id) {
+            static::loadLanguages();
             if ($databaseIso = Language::getIsoById($id)) {
                 $iso = $databaseIso;
             }
@@ -1180,7 +1182,7 @@ class LanguageCore extends ObjectModel
             Db::getInstance()->delete('tag', '`id_lang` = '.(int) $this->id);
 
             // Delete search words
-            Db::getInstance()->delete('`search_word`', '`id_lang` = '.(int) $this->id);
+            Db::getInstance()->delete('search_word', '`id_lang` = '.(int) $this->id);
 
             // Files deletion
             foreach (Language::getFilesList($this->iso_code, _THEME_NAME_, false, false, false, true, true) as $key => $file) {

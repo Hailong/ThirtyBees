@@ -40,8 +40,21 @@ abstract class PaymentModuleCore extends Module
     const DEBUG_MODE = false;
     /** @var int Current order's id */
     public $currentOrder;
+    /** @var bool $currencies */
     public $currencies = true;
+    /** @var string $currencies_mode */
     public $currencies_mode = 'checkbox';
+    /**
+     * Can be used to show that this module is compatible with the
+     * Advanced EU Checkout
+     *
+     * Note that it is an `int`, not a `bool`, so
+     * 0 = not supported
+     * 1 = supported
+     *
+     * @var int $is_eu_compatible
+     */
+    public $is_eu_compatible = 0;
     // @codingStandardsIgnoreEnd
 
     /**
@@ -58,7 +71,7 @@ abstract class PaymentModuleCore extends Module
      */
     public static function addCurrencyPermissions($idCurrency, array $idModuleList = [])
     {
-        $values = '';
+        $values = [];
         if (count($idModuleList) == 0) {
             // fetch all installed module ids
             $modules = PaymentModuleCore::getInstalledPaymentModules();
@@ -68,15 +81,14 @@ abstract class PaymentModuleCore extends Module
         }
 
         foreach ($idModuleList as $idModule) {
-            $values .= '('.(int) $idModule.','.(int) $idCurrency.'),';
+            $values[] = [
+                'id_module' => (int) $idModule,
+                'id_currency' => (int) $idCurrency,
+            ];
         }
 
         if (!empty($values)) {
-            return Db::getInstance()->execute(
-                '
-			INSERT INTO `'._DB_PREFIX_.'module_currency` (`id_module`, `id_currency`)
-			VALUES '.rtrim($values, ',')
-            );
+            return Db::getInstance()->insert('module_currency', $values);
         }
 
         return true;
@@ -95,19 +107,23 @@ abstract class PaymentModuleCore extends Module
     public static function getInstalledPaymentModules()
     {
         $hookPayment = 'Payment';
-        if (Db::getInstance()->getValue('SELECT `id_hook` FROM `'._DB_PREFIX_.'hook` WHERE `name` = \'displayPayment\'')) {
+        if (Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+            (new DbQuery())
+                ->select('`id_hook`')
+                ->from('hook')
+                ->where('`name` = \'displayPayment\'')
+        )) {
             $hookPayment = 'displayPayment';
         }
 
-        return Db::getInstance()->executeS(
-            '
-		SELECT DISTINCT m.`id_module`, h.`id_hook`, m.`name`, hm.`position`
-		FROM `'._DB_PREFIX_.'module` m
-		LEFT JOIN `'._DB_PREFIX_.'hook_module` hm ON hm.`id_module` = m.`id_module`'
-            .Shop::addSqlRestriction(false, 'hm').'
-		LEFT JOIN `'._DB_PREFIX_.'hook` h ON hm.`id_hook` = h.`id_hook`
-		INNER JOIN `'._DB_PREFIX_.'module_shop` ms ON (m.`id_module` = ms.`id_module` AND ms.id_shop='.(int) Context::getContext()->shop->id.')
-		WHERE h.`name` = \''.pSQL($hookPayment).'\''
+        return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+            (new DbQuery())
+                ->select('DISTINCT m.`id_module`, h.`id_hook`, m.`name`, hm.`position`')
+                ->from('module', 'm')
+                ->leftJoin('hook_module', 'hm', 'hm.`id_module` = m.`id_module`')
+                ->leftJoin('hook', 'h', 'hm.`id_hook` = h.`id_hook`')
+                ->innerJoin('module_shop', 'ms', 'm.`id_module` = ms.`id_module` AND ms.`id_shop` = '.(int) Context::getContext()->shop->id)
+                ->where('h.`name` = \''.pSQL($hookPayment).'\'')
         );
     }
 
@@ -124,9 +140,9 @@ abstract class PaymentModuleCore extends Module
             return false;
         }
 
-        if (($module_instance = Module::getInstanceByName($moduleName))) {
-            /** @var PaymentModule $module_instance */
-            if (!$module_instance->currencies || ($module_instance->currencies && count(Currency::checkPaymentCurrencies($module_instance->id)))) {
+        if (($moduleInstance = Module::getInstanceByName($moduleName))) {
+            /** @var PaymentModule $moduleInstance */
+            if (!$moduleInstance->currencies || ($moduleInstance->currencies && count(Currency::checkPaymentCurrencies($moduleInstance->id)))) {
                 return true;
             }
         }
@@ -196,15 +212,24 @@ abstract class PaymentModuleCore extends Module
         if (!$shops) {
             $shops = Shop::getShops(true, null, true);
         }
+        
+        $currencies = Currency::getCurrencies();
 
-        foreach ($shops as $s) {
-            if (!Db::getInstance()->execute(
-                '
-					INSERT INTO `'._DB_PREFIX_.'module_currency` (`id_module`, `id_shop`, `id_currency`)
-					SELECT '.(int) $this->id.', "'.(int) $s.'", `id_currency` FROM `'._DB_PREFIX_.'currency` WHERE deleted = 0'
-            )
-            ) {
-                return false;
+        foreach ($shops as $idShop) {
+            foreach ($currencies as $currency) {
+                if (!Db::getInstance()->insert(
+                    'module_currency',
+                    [
+                        'id_module'   => (int) $this->id,
+                        'id_shop'     => (int) $idShop,
+                        'id_currency' => (int) $currency['id_currency'],
+                    ],
+                    false,
+                    true,
+                    Db::INSERT_IGNORE
+                )) {
+                    return false;
+                }
             }
         }
 
@@ -228,11 +253,14 @@ abstract class PaymentModuleCore extends Module
         }
 
         foreach ($shops as $s) {
-            if (!Db::getInstance()->execute(
-                'INSERT INTO `'._DB_PREFIX_.'module_currency` (`id_module`, `id_shop`, `id_currency`)
-				VALUES ('.(int) $this->id.', "'.(int) $s.'", -2)'
-            )
-            ) {
+            if (!Db::getInstance()->insert(
+                'module_currency',
+                [
+                    'id_module' => (int) $this->id,
+                    'id_shop' => (int) $s,
+                    'id_currency' => '-2',
+                ]
+            )) {
                 return false;
             }
         }
@@ -280,13 +308,19 @@ abstract class PaymentModuleCore extends Module
             $carrierIds[] = $carrier['id_reference'];
         }
 
-        foreach ($shops as $s) {
+        foreach ($shops as $idShop) {
             foreach ($carrierIds as $idCarrier) {
-                if (!Db::getInstance()->execute(
-                    'INSERT INTO `'._DB_PREFIX_.'module_carrier` (`id_module`, `id_shop`, `id_reference`)
- 				VALUES ('.(int) $this->id.', "'.(int) $s.'", '.(int) $idCarrier.')'
-                )
-                ) {
+                if (!Db::getInstance()->insert(
+                    'module_carrier',
+                    [
+                        'id_module'    => (int) $this->id,
+                        'id_shop'      => (int) $idShop,
+                        'id_reference' => (int) $idCarrier,
+                    ],
+                    false,
+                    true,
+                    Db::INSERT_IGNORE
+                )) {
                     return false;
                 }
             }
@@ -303,10 +337,10 @@ abstract class PaymentModuleCore extends Module
      */
     public function uninstall()
     {
-        if (!Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'module_country` WHERE id_module = '.(int) $this->id)
-            || !Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'module_currency` WHERE id_module = '.(int) $this->id)
-            || !Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'module_group` WHERE id_module = '.(int) $this->id)
-            || !Db::getInstance()->execute('DELETE FROM `'._DB_PREFIX_.'module_carrier` WHERE id_module = '.(int) $this->id)
+        if (!Db::getInstance()->delete('module_country', '`id_module` = '.(int) $this->id)
+            || !Db::getInstance()->delete('module_currency', '`id_module` = '.(int) $this->id)
+            || !Db::getInstance()->delete('module_group', '`id_module` = '.(int) $this->id)
+            || !Db::getInstance()->delete('module_carrier', '`id_module` = '.(int) $this->id)
         ) {
             return false;
         }
@@ -320,9 +354,9 @@ abstract class PaymentModuleCore extends Module
      *
      * @param int    $idCart
      * @param int    $idOrderState
-     * @param float  $amountPaid    Amount really paid by customer (in the default currency)
-     * @param string $paymentMethod Payment method (eg. 'Credit card')
-     * @param null   $message       Message to attach to order
+     * @param float  $amountPaid      Amount really paid by customer (in the default currency)
+     * @param string $paymentMethod   Payment method (eg. 'Credit card')
+     * @param null   $message         Message to attach to order
      * @param array  $extraVars
      * @param null   $currencySpecial
      * @param bool   $dontTouchAmount
@@ -411,7 +445,7 @@ abstract class PaymentModuleCore extends Module
             $this->currentOrderReference = $reference;
 
             $orderCreationFailed = false;
-            $cartTotalPaid = (float) Tools::ps_round((float) $this->context->cart->getOrderTotal(true, Cart::BOTH), 2);
+            $cartTotalPaid = (float) Tools::ps_round((float) $this->context->cart->getOrderTotal(true, Cart::BOTH), _PS_PRICE_DISPLAY_PRECISION_);
 
             foreach ($cartDeliveryOption as $idAddress => $keyCarriers) {
                 foreach ($deliveryOptionList[$idAddress][$keyCarriers]['carrier_list'] as $idCarrier => $data) {
@@ -487,7 +521,7 @@ abstract class PaymentModuleCore extends Module
                     $order->gift_message = $this->context->cart->gift_message;
                     $order->mobile_theme = $this->context->cart->mobile_theme;
                     $order->conversion_rate = $this->context->currency->conversion_rate;
-                    $amountPaid = !$dontTouchAmount ? Tools::ps_round((float) $amountPaid, 2) : $amountPaid;
+                    $amountPaid = !$dontTouchAmount ? Tools::ps_round((float) $amountPaid, _PS_PRICE_DISPLAY_PRECISION_) : $amountPaid;
                     $order->total_paid_real = 0;
 
                     $order->total_products = (float) $this->context->cart->getOrderTotal(false, Cart::ONLY_PRODUCTS, $order->product_list, $idCarrier);
@@ -508,8 +542,8 @@ abstract class PaymentModuleCore extends Module
                     $order->total_wrapping_tax_incl = (float) abs($this->context->cart->getOrderTotal(true, Cart::ONLY_WRAPPING, $order->product_list, $idCarrier));
                     $order->total_wrapping = $order->total_wrapping_tax_incl;
 
-                    $order->total_paid_tax_excl = (float) Tools::ps_round((float) $this->context->cart->getOrderTotal(false, Cart::BOTH, $order->product_list, $idCarrier), _PS_PRICE_COMPUTE_PRECISION_);
-                    $order->total_paid_tax_incl = (float) Tools::ps_round((float) $this->context->cart->getOrderTotal(true, Cart::BOTH, $order->product_list, $idCarrier), _PS_PRICE_COMPUTE_PRECISION_);
+                    $order->total_paid_tax_excl = (float) (float) $this->context->cart->getOrderTotal(false, Cart::BOTH, $order->product_list, $idCarrier);
+                    $order->total_paid_tax_incl = (float) (float) $this->context->cart->getOrderTotal(true, Cart::BOTH, $order->product_list, $idCarrier);
                     $order->total_paid = $order->total_paid_tax_incl;
                     $order->round_mode = Configuration::get('PS_PRICE_ROUND_MODE');
                     $order->round_type = Configuration::get('PS_ROUND_TYPE');
@@ -533,7 +567,7 @@ abstract class PaymentModuleCore extends Module
                     // We don't use the following condition to avoid the float precision issues : http://www.php.net/manual/en/language.types.float.php
                     // if ($order->total_paid != $order->total_paid_real)
                     // We use number_format in order to compare two string
-                    if ($orderStatus->logable && number_format($cartTotalPaid, _PS_PRICE_COMPUTE_PRECISION_) != number_format($amountPaid, _PS_PRICE_COMPUTE_PRECISION_)) {
+                    if ($orderStatus->logable && number_format($cartTotalPaid, _TB_PRICE_DATABASE_PRECISION_) != number_format($amountPaid, _TB_PRICE_DATABASE_PRECISION_)) {
                         $idOrderState = Configuration::get('PS_OS_ERROR');
                     }
 
@@ -639,9 +673,9 @@ abstract class PaymentModuleCore extends Module
                     $productVarTplList = [];
                     foreach ($order->product_list as $product) {
                         $price = Product::getPriceStatic((int) $product['id_product'], false, ($product['id_product_attribute'] ? (int) $product['id_product_attribute'] : null), 6, null, false, true, $product['cart_quantity'], false, (int) $order->id_customer, (int) $order->id_cart, (int) $order->{Configuration::get('PS_TAX_ADDRESS_TYPE')});
-                        $priceTaxIncluded = Product::getPriceStatic((int) $product['id_product'], true, ($product['id_product_attribute'] ? (int) $product['id_product_attribute'] : null), 2, null, false, true, $product['cart_quantity'], false, (int) $order->id_customer, (int) $order->id_cart, (int) $order->{Configuration::get('PS_TAX_ADDRESS_TYPE')});
+                        $priceTaxIncluded = Product::getPriceStatic((int) $product['id_product'], true, ($product['id_product_attribute'] ? (int) $product['id_product_attribute'] : null), _PS_PRICE_DISPLAY_PRECISION_, null, false, true, $product['cart_quantity'], false, (int) $order->id_customer, (int) $order->id_cart, (int) $order->{Configuration::get('PS_TAX_ADDRESS_TYPE')});
 
-                        $productPrice = Product::getTaxCalculationMethod() == PS_TAX_EXC ? Tools::ps_round($price, 2) : $priceTaxIncluded;
+                        $productPrice = Product::getTaxCalculationMethod() == PS_TAX_EXC ? Tools::ps_round($price, _PS_PRICE_DISPLAY_PRECISION_) : $priceTaxIncluded;
 
                         $productVarTpl = [
                             'reference'     => $product['reference'],
@@ -786,6 +820,45 @@ abstract class PaymentModuleCore extends Module
                             $values['tax_incl'] = $order->total_products_wt - $totalReductionValueTaxIncluded;
                             $values['tax_excl'] = $order->total_products - $totalReductionValueTaxExcluded;
                         }
+
+                        // Copy a cart rule in case the cheapest product that meets the requirements gets a discount
+                        // The copied cart rule is converted into a product specific cart rule
+                        if ($cartRule['obj']->product_restriction) {
+                            // Create a new voucher from the original
+                            $voucher = new CartRule((int) $cartRule['obj']->id); // We need to instantiate the CartRule without lang parameter to allow saving it
+                            if ($cheapestProduct = $voucher->findCheapestProduct($package)) {
+                                unset($voucher->id);
+
+                                // Set a new voucher code
+                                $voucher->code = empty($voucher->code) ? substr(md5($order->id.'-'.$order->id_customer.'-'.$cartRule['obj']->id), 0, 16) : $voucher->code.'-2';
+                                if (preg_match('/\-([0-9]{1,2})\-([0-9]{1,2})$/', $voucher->code, $matches) && $matches[1] == $matches[2]) {
+                                    $voucher->code = preg_replace('/'.$matches[0].'$/', '-'.(intval($matches[1]) + 1), $voucher->code);
+                                }
+
+                                if ($this->context->customer->isGuest()) {
+                                    $voucher->id_customer = 0;
+                                } else {
+                                    $voucher->id_customer = $order->id_customer;
+                                }
+
+                                $cheapestProduct = explode('-', $cheapestProduct);
+                                $voucher->reduction_currency = $order->id_currency;
+                                $voucher->quantity = 0;
+                                $voucher->quantity_per_user = 0;
+                                $voucher->active = 0;
+                                $voucher->product_restriction = 1;
+                                $voucher->reduction_product = 0;
+                                $voucher->description = json_encode([
+                                    'id_product'           => $cheapestProduct[0],
+                                    'id_product_attribute' => $cheapestProduct[1],
+                                    'type'                 => 'cheapest_product',
+                                ]);
+                                $voucher->add();
+
+                                $cartRule['obj'] = $voucher;
+                            }
+                        }
+
                         $totalReductionValueTaxIncluded += $values['tax_incl'];
                         $totalReductionValueTaxExcluded += $values['tax_excl'];
 
@@ -849,7 +922,8 @@ abstract class PaymentModuleCore extends Module
 
                     // Hook validate order
                     Hook::exec(
-                        'actionValidateOrder', [
+                        'actionValidateOrder',
+                        [
                             'cart'        => $this->context->cart,
                             'order'       => $order,
                             'customer'    => $this->context->customer,

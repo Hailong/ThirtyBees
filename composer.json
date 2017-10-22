@@ -10,7 +10,7 @@
         "jakeasmith/http_build_url": "^1.0",
         "mrclay/minify": "^2.3",
         "greenlion/php-sql-parser": "^4.1",
-        "geoip/geoip": "^1.17",
+        "thirtybees/geoip": "^1.17",
         "smarty/smarty": "3.1.19",
         "pear/archive_tar": "^1.4",
         "mobiledetect/mobiledetectlib": "^2.8",
@@ -23,7 +23,12 @@
     "require-dev": {
         "satooshi/php-coveralls": "^1.0",
         "phpunit/phpunit": "~4.8 || ~5.7",
-        "codeception/codeception": "^2.2",
+        "codeception/codeception": "2.2.9",
         "codeception/aspect-mock": "^1.0 || ^2.0"
+    } ,
+    "config": {
+        "platform": {
+            "php": "5.5"
+        }
     }
 }

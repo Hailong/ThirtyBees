@@ -69,7 +69,7 @@
       <value>1</value>
     </configuration>
     <configuration id="PS_SHIPPING_HANDLING" name="PS_SHIPPING_HANDLING">
-      <value>2</value>
+      <value>0</value>
     </configuration>
     <configuration id="PS_SHIPPING_FREE_PRICE" name="PS_SHIPPING_FREE_PRICE">
       <value>0</value>
@@ -861,6 +861,9 @@
     </configuration>
     <configuration id="PS_ROUTE_category_rule" name="PS_ROUTE_category_rule">
       <value>{rewrite}</value>
+    </configuration>
+    <configuration id="PS_ROUTE_layered_rule" name="PS_ROUTE_layered_rule">
+      <value>{rewrite}{/:selected_filters}</value>
     </configuration>
     <configuration id="PS_ROUTE_supplier_rule" name="PS_ROUTE_supplier_rule">
       <value>{rewrite}</value>

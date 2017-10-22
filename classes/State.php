@@ -85,8 +85,8 @@ class StateCore extends ObjectModel
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
             (new DbQuery())
                 ->select('`id_state`, `id_country`, `id_zone`, `iso_code`, `name`, `active`')
-                ->from('state')
-                ->where($active ? 'WHERE active = 1' : '')
+                ->from('state', 's')
+                ->where($active ? '`active` = 1' : '')
                 ->orderBy('`name` ASC')
         );
     }
@@ -156,8 +156,8 @@ class StateCore extends ObjectModel
     /**
      * Get a state id with its iso code
      *
-     * @param string     $isoCode   Iso code
-     * @param int|null   $idCountry
+     * @param string   $isoCode   Iso code
+     * @param int|null $idCountry
      *
      * @return int state id
      *
@@ -312,7 +312,7 @@ class StateCore extends ObjectModel
             [
                 'id_zone' => (int) $idZone,
             ],
-            'id_state` IN ('.implode(',', $idsStates).')'
+            '`id_state` IN ('.implode(',', $idsStates).')'
         );
     }
 }

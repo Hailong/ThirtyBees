@@ -39,30 +39,21 @@ class CookieCore
     // @codingStandardsIgnoreStart
     /** @var array Contain cookie content in a key => value format */
     protected $_content;
-
     /** @var array Crypted cookie name for setcookie() */
     protected $_name;
-
     /** @var array expiration date for setcookie() */
     protected $_expire;
-
     /** @var array Website domain for setcookie() */
     protected $_domain;
-
     /** @var array Path for setcookie() */
     protected $_path;
-
     /** @var Blowfish|Rijndael|PhpEncryption cipher tool instance */
     protected $_cipherTool;
-
+    /** @var bool $_modified */
     protected $_modified = false;
-
     protected $_allow_writing;
-
     protected $_salt;
-
     protected $_standalone;
-
     protected $_secure = false;
     // @codingStandardsIgnoreEnd
 
@@ -104,7 +95,7 @@ class CookieCore
         $this->_salt = $this->_standalone ? str_pad('', 8, md5('ps'.__FILE__)) : _COOKIE_IV_;
         if ($this->_standalone) {
             $this->_cipherTool = new Blowfish(str_pad('', 56, md5('ps'.__FILE__)), str_pad('', 56, md5('iv'.__FILE__)));
-        } elseif ((int) Configuration::get('PS_CIPHER_ALGORITHM') === 1 && defined('_RIJNDAEL_KEY_')) {
+        } elseif (extension_loaded('mcrypt') && (int) Configuration::get('PS_CIPHER_ALGORITHM') === 1 && defined('_RIJNDAEL_KEY_')) {
             $this->_cipherTool = new Rijndael(_RIJNDAEL_KEY_, _RIJNDAEL_IV_);
         } elseif ((int) Configuration::get('PS_CIPHER_ALGORITHM') === 2 && defined('_PHP_ENCRYPTION_KEY_')) {
             $this->_cipherTool = new PhpEncryption(_PHP_ENCRYPTION_KEY_);
@@ -244,11 +235,8 @@ class CookieCore
             $content = 0;
             $time = 1;
         }
-        if (PHP_VERSION_ID <= 50200) { /* PHP version > 5.2.0 */
-            return setcookie($this->_name, $content, $time, $this->_path, $this->_domain, $this->_secure);
-        } else {
-            return setcookie($this->_name, $content, $time, $this->_path, $this->_domain, $this->_secure, true);
-        }
+
+        return setcookie($this->_name, $content, $time, $this->_path, $this->_domain, $this->_secure, true);
     }
 
     /**
@@ -348,6 +336,9 @@ class CookieCore
      * Check customer informations saved into cookie and return customer validity
      *
      * @deprecated 1.0.0 use Customer::isLogged() instead
+     *
+     * @param bool $withGuest
+     *
      * @return bool customer validity
      */
     public function isLogged($withGuest = false)
@@ -432,13 +423,19 @@ class CookieCore
     /**
      * Save cookie with setcookie()
      *
+     * @return bool
+     *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
     public function write()
     {
-        if (!$this->_modified || headers_sent() || !$this->_allow_writing) {
-            return;
+        if (!$this->_modified) {
+            return true;
+        }
+
+        if (headers_sent() || !$this->_allow_writing) {
+            return false;
         }
 
         $cookie = '';
@@ -463,6 +460,8 @@ class CookieCore
     /**
      * @since   1.0.0
      * @version 1.0.0 Initial version
+     *
+     * @param string $origin
      */
     public function unsetFamily($origin)
     {
@@ -477,6 +476,10 @@ class CookieCore
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
+     *
+     * @param string $origin
+     *
+     * @return array
      */
     public function getFamily($origin)
     {

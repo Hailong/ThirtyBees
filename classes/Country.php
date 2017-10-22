@@ -115,10 +115,8 @@ class CountryCore extends ObjectModel
             (new DbQuery())
                 ->select('*')
                 ->from('country', 'c')
-                ->leftJoin('country_shop', 'cs', 'cs.`id_country` = c.`id_country`')
+                ->leftJoin('country_shop', 'cs', 'cs.`id_country` = c.`id_country` AND cs.`id_shop` = '.(int) $idShop.' AND cs.`id_lang` = '.(int) $idLang)
                 ->leftJoin('country_lang', 'cl', 'cl.`id_country` = c.`id_country`')
-                ->where('cs.`id_shop` = '.(int) $idShop)
-                ->where('cs.`id_lang` = '.(int) $idLang)
         );
     }
 
@@ -358,9 +356,8 @@ class CountryCore extends ObjectModel
                 ->from('country', 'c')
                 ->join(Shop::addSqlAssociation('country', 'c', false))
                 ->leftJoin('state', 's', 's.`id_country` = c.`id_country`')
-                ->leftJoin('country_lang', 'cl', 'c.`id_country` = cl.`id_country`')
+                ->leftJoin('country_lang', 'cl', 'c.`id_country` = cl.`id_country` AND cl.`id_lang` = '.(int) $idLang)
                 ->where('c.`id_zone` = '.(int) $idZone.' OR s.`id_zone` = '.(int) $idZone)
-                ->where('cl.`id_lang` = '.(int) $idLang)
         );
     }
 
@@ -525,7 +522,7 @@ class CountryCore extends ObjectModel
         }
 
         if (!empty($insert)) {
-            return Db::getInstance()->insert('module_country', $insert);
+            return Db::getInstance()->insert('module_country', $insert, false, true, Db::INSERT_IGNORE);
         } else {
             return true;
         }
@@ -552,9 +549,8 @@ class CountryCore extends ObjectModel
                 ->select('cl.*, c.*, cl.`name` AS `country`, z.`name` AS `zone`')
                 ->from('country', 'c')
                 ->join(Shop::addSqlAssociation('country', 'c'))
-                ->leftJoin('country_lang', 'cl', 'c.`id_country` = cl.`id_country`')
+                ->leftJoin('country_lang', 'cl', 'c.`id_country` = cl.`id_country` AND cl.`id_lang` = '.(int) $idLang)
                 ->leftJoin('zone', 'z', 'z.`id_zone` = c.`id_zone`')
-                ->where('cl.`id_lang` = '.(int) $idLang)
                 ->where($active ? 'c.`active` = 1' : '')
                 ->where($containStates ? 'c.`contains_states` = '.(int) $containStates : '')
                 ->orderBy('cl.`name` ASC')

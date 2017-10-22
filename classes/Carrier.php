@@ -401,14 +401,13 @@ class CarrierCore extends ObjectModel
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
             (new DbQuery())
-                ->select('cl.*, c.*, cl.`name` as `country`, zz.`name` as `zone`')
+                ->select('cl.*, c.*, cl.`name` as `country`, z.`name` as `zone`')
                 ->from('country', 'c')
                 ->join(Shop::addSqlAssociation('country', 'c'))
-                ->leftJoin('country_lang', 'cl', 'cl.`id_country` = c.`id_country`')
+                ->leftJoin('country_lang', 'cl', 'cl.`id_country` = c.`id_country` AND cl.`id_lang` = '.(int) $idLang)
                 ->innerJoin('carrier_zone', 'cz', 'cz.`id_zone` = c.`id_zone`')
                 ->innerJoin('carrier', 'cr', 'cr.`id_carrier` = cz.`id_carrier`')
-                ->leftJoin('zone', 'z', 'cz.`id_zone` = zz.`id_zone`')
-                ->where('cl.`id_lang` = '.(int) $idLang)
+                ->leftJoin('zone', 'z', 'cz.`id_zone` = z.`id_zone`')
                 ->where('cr.`deleted` = 0')
                 ->where($activeCarriers ? 'cr.`active` = 1' : '')
                 ->where($activeCountries ? 'c.`active` = 1' : '')
@@ -550,10 +549,10 @@ class CarrierCore extends ObjectModel
             $query->innerJoin(
                 'carrier',
                 'c',
-                'c.id_reference = pc.id_carrier_reference AND c.deleted = 0 AND c.active = 1'
+                'c.`id_reference` = pc.`id_carrier_reference` AND c.`deleted` = 0 AND c.`active` = 1'
             );
-            $query->where('pc.id_product = '.(int) $product->id);
-            $query->where('pc.id_shop = '.(int) $idShop);
+            $query->where('pc.`id_product` = '.(int) $product->id);
+            $query->where('pc.`id_shop` = '.(int) $idShop);
 
             $carriersForProduct = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($query);
             Cache::store($cacheId, $carriersForProduct);
@@ -1889,7 +1888,7 @@ class CarrierCore extends ObjectModel
             [
                 'position' => ['type' => 'sql', 'value' => '`position` '.($way ? '- 1' : '+ 1')],
             ],
-            '`position` '.($way ? '> '.(int) $movedCarrier['position'].' AND `position` <= '.(int) $position : '< '.(int) $movedCarrier['position'].' AND `position` >= '.(int) $position.'AND `deleted` = 0')
+            '`position` '.($way ? '> '.(int) $movedCarrier['position'].' AND `position` <= '.(int) $position : '< '.(int) $movedCarrier['position'].' AND `position` >= '.(int) $position.' AND `deleted` = 0')
         ) && Db::getInstance()->update(
             'carrier',
             [

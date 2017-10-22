@@ -218,12 +218,25 @@ function ProductTabsManager() {
         if (($.inArray(status, wrongStatuses) !== -1 || $.inArray(request.status, wrongStatusCodes) !== -1) && !self.page_reloading) {
           var currentTab = '';
           if (typeof request.responseText !== 'undefined' && request.responseText && request.responseText.length) {
-            currentTab = $(request.responseText)
-              .filter('.product-tab')
-              .attr('id')
-              .replace('product-', '');
+            currentTab = $(request.responseText);
+            if (currentTab) {
+              currentTab = currentTab
+                .filter('.product-tab')
+                .attr('id');
+            }
+            if (currentTab) {
+              currentTab.replace('product-', '');
+            }
 
-            currentTab = currentTab[0].toUpperCase() + currentTab.slice(1);
+            if (typeof currentTab === 'undefined' || !currentTab) {
+              var urlRegex = /action=([a-zA-Z]+)/g;
+              var data = urlRegex.exec(this.url);
+
+              currentTab = data[1];
+            } else {
+              currentTab = currentTab[0].toUpperCase() + currentTab.slice(1);
+            }
+
             // De-Franglais the name
             if (currentTab === 'Attachements') {
               currentTab = 'Attachments';
@@ -624,7 +637,8 @@ window.product_tabs.Combinations = new function () {
 
     for (var j = 0; j < oldAttr.length; j += 1) {
       var opt = document.createElement('option');
-      opt.text = oldAttr[j += 1];
+      opt.text = oldAttr[j];
+      j += 1;
       opt.value = oldAttr[j];
       try {
         elem.add(opt, null);
@@ -898,7 +912,7 @@ window.product_tabs.Associations = new function () {
   };
 
   this.getAccessoriesIds = function () {
-    if ($('#inputAccessories').val()) {
+    if (!$('#inputAccessories').val()) {
       return window.id_product;
     }
     return window.id_product + ',' + $('#inputAccessories').val().replace(/\-/g, ',');
@@ -914,7 +928,7 @@ window.product_tabs.Associations = new function () {
    * @return {undefined}
    */
   this.addAccessory = function (event, data, formatted) {
-    if (typeof data !== 'undefined') {
+    if (typeof data === 'undefined') {
       return;
     }
     var productId = data[1];
@@ -1005,7 +1019,10 @@ window.product_tabs.Associations = new function () {
         $('select#id_manufacturer').chosen({ width: '250px' }).append(options).trigger('chosen:updated');
       },
       error: function (XMLHttpRequest, textStatus) {
-        $('select#id_manufacturer').replaceWith('<p id="id_manufacturer">[TECHNICAL ERROR] ajaxProductManufacturers: ' + textStatus + '</p>');
+        var $selectManufacturer = $('select#id_manufacturer');
+        if ($selectManufacturer.length) {
+          $selectManufacturer.replaceWith('<p id="id_manufacturer">[TECHNICAL ERROR] ajaxProductManufacturers: ' + textStatus + '</p>');
+        }
       }
     });
   };
@@ -1177,6 +1194,7 @@ window.product_tabs.Informations = new function () {
   };
 
   this.switchProductType = function () {
+    window.product_type = parseInt(window.product_type, 10);
     if (window.product_type === window.product_type_pack) {
       $('#pack_product').attr('checked', true);
     } else if (window.product_type === window.product_type_virtual) {
@@ -1187,7 +1205,7 @@ window.product_tabs.Informations = new function () {
       $('#simple_product').attr('checked', true);
     }
 
-    $('input[name="type_product"]').on('click', function (e) {
+    $('input[name="type_product"]').on('click', function(e) {
       // Reset settings
       $('a[id*="VirtualProduct"]').hide();
 
@@ -1195,11 +1213,11 @@ window.product_tabs.Informations = new function () {
 
       $('div.is_virtual_good').hide();
       $('#is_virtual').val(0);
-      window.tabs_manager.onLoad('VirtualProduct', function () {
+      window.tabs_manager.onLoad('VirtualProduct', function(){
         $('#is_virtual_good').removeAttr('checked');
       });
 
-      window.product_type = $(this).val();
+      window.product_type = parseInt($(this).val(), 10);
       $('#warn_virtual_combinations').hide();
       $('#warn_pack_combinations').hide();
       // until a product is added in the pack
@@ -1211,10 +1229,10 @@ window.product_tabs.Informations = new function () {
         } else {
           $('#product-pack-container').show();
           // If the pack tab has not finished loaded the changes will be made when the loading event is triggered
-          $('#product-tab-content-Pack').bind('loaded', function () {
+          $('#product-tab-content-Pack').on('loaded', function () {
             $('#ppack').val(1).attr('checked', true).attr('disabled', true);
           });
-          $('#product-tab-content-Quantities').bind('loaded', function () {
+          $('#product-tab-content-Quantities').on('loaded', function () {
             $('.stockForVirtualProduct').show();
           });
 
@@ -1234,19 +1252,19 @@ window.product_tabs.Informations = new function () {
           $('a[id*="VirtualProduct"]').show();
           $('#is_virtual').val(1);
 
-          window.tabs_manager.onLoad('VirtualProduct', function () {
+          window.tabs_manager.onLoad('VirtualProduct', function() {
             $('#is_virtual_good').attr('checked', true);
             $('#virtual_good').show();
           });
 
-          window.tabs_manager.onLoad('Quantities', function () {
+          window.tabs_manager.onLoad('Quantities', function() {
             $('.stockForVirtualProduct').hide();
           });
 
           $('a[id*="Combinations"]').hide();
           $('a[id*="Shipping"]').hide();
 
-          window.tabs_manager.onLoad('Informations', function () {
+          window.tabs_manager.onLoad('Informations', function() {
             $('#condition').attr('disabled', true);
             $('#condition option[value=refurbished]').removeAttr('selected');
             $('#condition option[value=used]').removeAttr('selected');
@@ -1264,6 +1282,7 @@ window.product_tabs.Informations = new function () {
       handleSaveButtons();
     });
   };
+
   this.onReady = function () {
     loadPack();
     self.bindAvailableForOrder();
@@ -1292,8 +1311,8 @@ window.product_tabs.Pack = new function () {
   var self = this;
 
   this.bindPackEvents = function () {
-    $('.delPackItem').on('click', function () {
-      window.delPackItem($(this).data('delete'), $(this).data('delete-attr'));
+    $('body').on('click', '.delPackItem', function () {
+      delPackItem($(this).data('delete'), $(this).data('delete-attr'));
     });
 
     function productFormatResult(item) {
@@ -1354,17 +1373,17 @@ window.product_tabs.Pack = new function () {
         }
       },
       formatResult: productFormatResult,
-      formatSelection: productFormatSelection,
+      formatSelection: productFormatSelection
     })
       .on('select2-selecting', function (e) {
         selectedProduct = e.object;
       });
 
     function addPackItem() {
-      if (window.selectedProduct) {
+      if (selectedProduct) {
         var $curPackItemQty = $('#curPackItemQty');
-        window.selectedProduct.qty = $curPackItemQty.val();
-        if (!window.selectedProduct.id || !window.selectedProduct.name && $curPackItemQty.valid()) {
+        selectedProduct.qty = $curPackItemQty.val();
+        if ((!selectedProduct.id || !selectedProduct.name) && $curPackItemQty.valid()) {
           window.error_modal(window.error_heading_msg, window.msg_select_one);
 
           return false;
@@ -1398,16 +1417,11 @@ window.product_tabs.Pack = new function () {
         $('#inputPackItems').val($('#inputPackItems').val() + line + '-');
         $('#namePackItems').val($('#namePackItems').val() + lineDisplay + '¤');
 
-        $('.delPackItem').on('click', function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          window.delPackItem($(this).data('delete'), $(this).data('delete-attr'));
-        });
         selectedProduct = null;
         $('#curPackItemName').select2('val', '');
         $('.pack-empty-warning').hide();
       } else {
-        window.error_modal(error_heading_msg, msg_select_one);
+        window.error_modal(window.error_heading_msg, window.msg_select_one);
 
         return false;
       }
@@ -1420,19 +1434,19 @@ window.product_tabs.Pack = new function () {
       var regx = new RegExp('x', 'g');
 
       var input = $('#inputPackItems');
-      var name = $('#namePackItems');
+      var namePack = $('#namePackItems');
 
       var inputCut = input.val().split(reg);
-      var nameCut = name.val().split(new RegExp('¤', 'g'));
+      var nameCut = namePack.val().split(new RegExp('¤', 'g'));
 
       input.val(null);
-      name.val(null);
+      namePack.val(null);
       for (var i = 0; i < inputCut.length; i += 1) {
         if (inputCut[i]) {
           var inputQty = inputCut[i].split(regx);
-          if (inputQty[1] !== id || inputQty[2] !== idAttribute) {
+          if (inputQty[1] != id || inputQty[2] != idAttribute) {
             input.val(input.val() + inputCut[i] + '-');
-            name.val(name.val() + nameCut[i] + '¤');
+            namePack.val(namePack.val() + nameCut[i] + '¤');
           }
         }
       }

@@ -99,7 +99,8 @@ class TagCore extends ObjectModel
      * @param int          $idLang    Language id
      * @param int          $idProduct Product id to link tags with
      * @param string|array $tagList   List of tags, as array or as a string with comas
-     * @param string       $separator
+     * @param string       $separator Separator to split a given string inot an array.
+     *                                Not needed if $tagList is an array already.
      *
      * @return bool Operation success
      *
@@ -113,7 +114,7 @@ class TagCore extends ObjectModel
         }
 
         if (!is_array($tagList)) {
-            $tagList = array_filter(array_unique(array_map('trim', preg_split('#\\'.$separator.'#', $tagList, null, PREG_SPLIT_NO_EMPTY))));
+            $tagList = explode($separator, $tagList);
         }
 
         $list = [];
@@ -184,7 +185,7 @@ class TagCore extends ObjectModel
      */
     public function setProducts($array)
     {
-        $result = Db::getInstance()->delete('product_tag', 'id_tag = '.(int) $this->id);
+        $result = Db::getInstance()->delete('product_tag', '`id_tag` = '.(int) $this->id);
         if (is_array($array)) {
             $array = array_map('intval', $array);
             $result &= ObjectModel::updateMultishopTable('Product', ['indexed' => 0], 'a.id_product IN ('.implode(',', $array).')');
@@ -272,7 +273,7 @@ class TagCore extends ObjectModel
                     ->select('t.`name`, `counter` AS `times`')
                     ->from('tag_count', 'pt')
                     ->leftJoin('tag', 't', 't.`id_tag` = pt.`id_tag`')
-                    ->where('pt.`id_group` = '.(count($groups) ? 'IN ('.implode(',', $groups).')' : '= 1'))
+                    ->where('pt.`id_group` '.(count($groups) ? 'IN ('.implode(',', $groups).')' : '= 1'))
                     ->where('pt.`id_lang` = '.(int) $idLang)
                     ->where('pt.`id_shop` = '.(int) $context->shop->id)
                     ->orderBy('`times` DESC')
@@ -376,8 +377,7 @@ class TagCore extends ObjectModel
             (new DbQuery())
                 ->select('pl.`name`, pl.`id_product`')
                 ->from('product', 'p')
-                ->leftJoin('product_lang', 'pl', 'p.`id_product` = pl.`id_product`'.Shop::addSqlRestrictionOnLang('pl'))
-                ->where('pl.`id_lang` = '.(int) $idLang)
+                ->leftJoin('product_lang', 'pl', 'p.`id_product` = pl.`id_product`'.Shop::addSqlRestrictionOnLang('pl').Shop::addSqlAssociation('product', 'p').' AND pl.`id_lang` = '.(int) $idLang)
                 ->where('product_shop.`active` = 1')
                 ->where($this->id ? ('p.`id_product` '.$in.' (SELECT pt.`id_product` FROM `'._DB_PREFIX_.'product_tag` pt WHERE pt.`id_tag` = '.(int) $this->id.')') : '')
                 ->orderBy('pl.`name`')

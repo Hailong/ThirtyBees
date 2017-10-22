@@ -39,21 +39,20 @@ class HTMLTemplateOrderReturnCore extends HTMLTemplate
     // @codingStandardsIgnoreStart
     /** @var OrderReturn $order_return */
     public $order_return;
-
     /** @var Order $order */
     public $order;
     // @codingStandardsIgnoreEnd
 
     /**
-     * @param OrderReturn $orderReturn
-     * @param Smarty      $smarty
+     * @param OrderReturnCore $orderReturn
+     * @param Smarty          $smarty
      *
      * @throws PrestaShopException
      *
      * @since   1.0.0
      * @version 1.0.0 Initial version
      */
-    public function __construct(OrderReturn $orderReturn, Smarty $smarty)
+    public function __construct(OrderReturnCore $orderReturn, Smarty $smarty)
     {
         $this->order_return = $orderReturn;
         $this->smarty = $smarty;
@@ -105,7 +104,7 @@ class HTMLTemplateOrderReturnCore extends HTMLTemplate
             'conditions_tab' => $this->smarty->fetch($this->getTemplate('order-return.conditions-tab')),
         ];
         $this->smarty->assign($tpls);
-        
+
         return $this->smarty->fetch($this->getTemplate('order-return'));
     }
 

@@ -180,7 +180,12 @@ class FrontControllerCore extends Controller
 
         if (!is_array(static::$currentCustomerGroups)) {
             static::$currentCustomerGroups = [];
-            $result = Db::getInstance()->executeS('SELECT id_group FROM '._DB_PREFIX_.'customer_group WHERE id_customer = '.(int) $context->customer->id);
+            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS(
+                (new DbQuery())
+                    ->select('`id_group`')
+                    ->from('customer_group')
+                    ->where('`id_customer` = '.(int) $context->customer->id)
+            );
             foreach ($result as $row) {
                 static::$currentCustomerGroups[] = $row['id_group'];
             }
@@ -258,11 +263,14 @@ class FrontControllerCore extends Controller
                          Media::FAVICON_57  => '57',
                          Media::FAVICON_72  => '72',
                          Media::FAVICON_114 => '114',
-                         Media::FAVICON_144 => '144',
+                         Media::FAVICON_192 => '192',
                      ] as $faviconType => $size) {
                 if ($path = Media::getFaviconPath($faviconType)) {
-                    $hookHeader .= '<link rel="shortcut icon" sizes="'.$size.'x'.$size.'" href="'.$path.'">';
+                    $hookHeader .= '<link rel="icon" sizes="'.$size.'x'.$size.'" href="'.$path.'">';
                 }
+            }
+            if ($path = Media::getFaviconPath(Media::FAVICON_144)) {
+                $hookHeader .= '<link rel="apple-touch-icon" sizes="144x144" href="'.$path.'">';
             }
 
             if (isset($this->php_self)) { // append some seo fields, canonical, hrefLang, rel prev/next
@@ -270,9 +278,9 @@ class FrontControllerCore extends Controller
             }
 
             // To be removed: append extra css and metas to the header hook
-            $extraCode = Configuration::getMultiple(['PS_CUSTOMCODE_METAS', 'PS_CUSTOMCODE_CSS']);
-            $extraCss = $extraCode['PS_CUSTOMCODE_CSS'] ? '<style>'.$extraCode['PS_CUSTOMCODE_CSS'].'</style>' : '';
-            $hookHeader .= $extraCode['PS_CUSTOMCODE_METAS'].$extraCss;
+            $extraCode = Configuration::getMultiple([Configuration::CUSTOMCODE_METAS, Configuration::CUSTOMCODE_CSS]);
+            $extraCss = $extraCode[Configuration::CUSTOMCODE_CSS] ? '<style>'.$extraCode[Configuration::CUSTOMCODE_CSS].'</style>' : '';
+            $hookHeader .= $extraCode[Configuration::CUSTOMCODE_METAS].$extraCss;
 
             $this->context->smarty->assign(
                 [
@@ -336,40 +344,40 @@ class FrontControllerCore extends Controller
     {
         $content = '';
         $languages = Language::getLanguages();
-        $default_lang = Configuration::get('PS_LANG_DEFAULT');
+        $defaultLang = Configuration::get('PS_LANG_DEFAULT');
         switch ($this->php_self) {
             case 'product': // product page
-                $id_product = (int) Tools::getValue('id_product');
-                $canonical = $this->context->link->getProductLink($id_product);
-                $hreflang = $this->getHrefLang('product', $id_product, $languages, $default_lang);
+                $idProduct = (int) Tools::getValue('id_product');
+                $canonical = $this->context->link->getProductLink($idProduct);
+                $hreflang = $this->getHrefLang('product', $idProduct, $languages, $defaultLang);
 
                 break;
 
             case 'category':
-                $id_category = (int) Tools::getValue('id_category');
-                $content .= $this->getRelPrevNext('category', $id_category);
-                $canonical = $this->context->link->getCategoryLink((int) $id_category);
-                $hreflang = $this->getHrefLang('category', $id_category, $languages, $default_lang);
+                $idCategory = (int) Tools::getValue('id_category');
+                $content .= $this->getRelPrevNext('category', $idCategory);
+                $canonical = $this->context->link->getCategoryLink((int) $idCategory);
+                $hreflang = $this->getHrefLang('category', $idCategory, $languages, $defaultLang);
 
                 break;
 
             case 'manufacturer':
-                $id_manufacturer = (int) Tools::getValue('id_manufacturer');
-                $content .= $this->getRelPrevNext('manufacturer', $id_manufacturer);
-                $hreflang = $this->getHrefLang('manufacturer', $id_manufacturer, $languages, $default_lang);
+                $idManufacturer = (int) Tools::getValue('id_manufacturer');
+                $content .= $this->getRelPrevNext('manufacturer', $idManufacturer);
+                $hreflang = $this->getHrefLang('manufacturer', $idManufacturer, $languages, $defaultLang);
 
-                if (!$id_manufacturer) {
+                if (!$idManufacturer) {
                     $canonical = $this->context->link->getPageLink('manufacturer');
                 } else {
-                    $canonical = $this->context->link->getManufacturerLink($id_manufacturer);
+                    $canonical = $this->context->link->getManufacturerLink($idManufacturer);
                 }
 
                 break;
 
             case 'supplier':
-                $id_supplier = (int) Tools::getValue('id_supplier');
-                $content .= $this->getRelPrevNext('supplier', $id_supplier);
-                $hreflang = $this->getHrefLang('supplier', $id_supplier, $languages, $default_lang);
+                $idSupplier = (int) Tools::getValue('id_supplier');
+                $content .= $this->getRelPrevNext('supplier', $idSupplier);
+                $hreflang = $this->getHrefLang('supplier', $idSupplier, $languages, $defaultLang);
 
                 if (!Tools::getValue('id_supplier')) {
                     $canonical = $this->context->link->getPageLink('supplier');
@@ -378,15 +386,28 @@ class FrontControllerCore extends Controller
                 }
 
                 break;
+
+            case 'cms':
+	            $idCms = Tools::getValue('id_cms');
+	            $idCmsCategory = Tools::getValue('id_cms_category');
+	            if ($idCms) {
+		            $canonical = $this->context->link->getCMSLink((int) $idCms);
+		            $hreflang = $this->getHrefLang('cms', (int) $idCms, $languages, $defaultLang);
+	            } else {
+		            $canonical = $this->context->link->getCMSCategoryLink((int) $idCmsCategory);
+		            $hreflang = $this->getHrefLang('cms_category', (int) $idCmsCategory, $languages, $defaultLang);
+	            }
+
+                break;
             default:
                 $canonical = $this->context->link->getPageLink($this->php_self);
-                $hreflang = $this->getHrefLang($this->php_self, 0, $languages, $default_lang);
+                $hreflang = $this->getHrefLang($this->php_self, 0, $languages, $defaultLang);
                 break;
 
         }
         // build new content
         $content .= '<link rel="canonical" href="'.$canonical.'">'."\n";
-        if ($hreflang) {
+        if (is_array($hreflang) && !empty($hreflang)) {
             foreach ($hreflang as $lang) {
                 $content .= "$lang\n";
             }
@@ -403,7 +424,7 @@ class FrontControllerCore extends Controller
      * @param array  $languages     list of languages
      * @param int    $idLangDefault id of the default language
      *
-     * @return string html of the hreflang tags
+     * @return string[] HTML of the hreflang tags
      *
      * @since   1.0.0
      *
@@ -411,12 +432,12 @@ class FrontControllerCore extends Controller
      */
     public function getHrefLang($entity, $idItem, $languages, $idLangDefault)
     {
+        $links = [];
         foreach ($languages as $lang) {
             switch ($entity) {
                 case 'product':
                     $lnk = $this->context->link->getProductLink((int) $idItem, null, null, null, $lang['id_lang']);
                     break;
-
                 case 'category':
                     $lnk = $this->context->link->getCategoryLink((int) $idItem, null, $lang['id_lang']);
                     break;
@@ -434,6 +455,12 @@ class FrontControllerCore extends Controller
                         $lnk = $this->context->link->getSupplierLink((int) $idItem, null, $lang['id_lang']);
                     }
                     break;
+	            case 'cms':
+		            $lnk = $this->context->link->getCMSLink((int) $idItem, null, null, $lang['id_lang']);
+		            break;
+	            case 'cms_category':
+		            $lnk = $this->context->link->getCMSCategoryLink((int) $idItem, null, $lang['id_lang']);
+		            break;
                 default:
                     $lnk = $this->context->link->getPageLink($entity, null, $lang['id_lang']);
                     break;
@@ -470,38 +497,38 @@ class FrontControllerCore extends Controller
         switch ($entity) {
             case 'category':
                 $category = new Category((int) $idItem);
-                $nb_products = $category->getProducts(null, null, null, null, null, true);
+                $nbProducts = $category->getProducts(null, null, null, null, null, true);
                 break;
             case 'manufacturer':
                 $manufacturer = new Manufacturer($idItem);
-                $nb_products = $manufacturer->getProducts($manufacturer->id, null, null, null, null, null, true);
+                $nbProducts = $manufacturer->getProducts($manufacturer->id, null, null, null, null, null, true);
                 break;
             case 'supplier':
                 $supplier = new Supplier($idItem);
-                $nb_products = $supplier->getProducts($supplier->id, null, null, null, null, null, true);
+                $nbProducts = $supplier->getProducts($supplier->id, null, null, null, null, null, true);
                 break;
             default:
-                break;
+                return '';
         }
 
         $p = Tools::getValue('p');
         $n = (int) Configuration::get('PS_PRODUCTS_PER_PAGE');
 
-        $total_pages = ceil($nb_products / $n);
+        $totalPages = ceil($nbProducts / $n);
 
         $linkprev = '';
         $linknext = '';
-        $request_page = $this->context->link->getPaginationLink($entity, $idItem, $n, false, 1, false);
+        $requestPage = $this->context->link->getPaginationLink($entity, $idItem, $n, false, 1, false);
         if (!$p) {
             $p = 1;
         }
 
         if ($p > 1) { // we need prev
-            $linkprev = $this->context->link->goPage($request_page, $p - 1);
+            $linkprev = $this->context->link->goPage($requestPage, $p - 1);
         }
 
-        if ($total_pages > 1 && $p + 1 <= $total_pages) {
-            $linknext = $this->context->link->goPage($request_page, $p + 1);
+        if ($totalPages > 1 && $p + 1 <= $totalPages) {
+            $linknext = $this->context->link->goPage($requestPage, $p + 1);
         }
 
         $return = '';
@@ -572,8 +599,6 @@ class FrontControllerCore extends Controller
      */
     public function initHeader()
     {
-        /* @see P3P Policies (http://www.w3.org/TR/2002/REC-P3P-20020416/#compact_policies) */
-        header('P3P: CP="IDC DSP COR CURa ADMa OUR IND PHY ONL COM STA"');
         // Added powered by for builtwith.com
         header('Powered-By: thirty bees');
         // Hooks are voluntary out the initialize array (need those variables already assigned)
@@ -1079,11 +1104,11 @@ class FrontControllerCore extends Controller
      * @param array|string $jsUri     Path to file, or an array of paths
      * @param bool         $checkPath If true, checks if files exists
      *
-     * @return true|void
+     * @return bool
      */
     public function addJS($jsUri, $checkPath = true)
     {
-        return Frontcontroller::addMedia($jsUri, null, null, false, $checkPath);
+        return static::addMedia($jsUri, null, null, false, $checkPath);
     }
 
     /**
@@ -1095,7 +1120,7 @@ class FrontControllerCore extends Controller
      * @param bool         $remove       If True, removes media files
      * @param bool         $checkPath    If true, checks if files exists
      *
-     * @return true|void
+     * @return bool
      *
      * @since   1.0.0
      *
@@ -1129,7 +1154,7 @@ class FrontControllerCore extends Controller
 
                     if ($different && @filemtime($overridePath)) {
                         $file = str_replace(__PS_BASE_URI__.'modules/', __PS_BASE_URI__.'themes/'._THEME_NAME_.'/'.$type.'/modules/', $file, $different);
-                    } elseif ($differentCss && @filemtime($overridePathCss)) {
+                    } elseif ($differentCss && isset($overridePathCss) && @filemtime($overridePathCss)) {
                         $file = $overridePathCss;
                     }
                     if ($cssMediaType) {
@@ -1147,17 +1172,24 @@ class FrontControllerCore extends Controller
 
         if ($remove) {
             if ($cssMediaType) {
-                return parent::removeCSS($listUri, $cssMediaType);
-            }
+                parent::removeCSS($listUri, $cssMediaType);
 
-            return parent::removeJS($listUri);
+                return true;
+            }
+            parent::removeJS($listUri);
+
+            return true;
         }
 
         if ($cssMediaType) {
-            return parent::addCSS($listUri, $cssMediaType, $offset, $checkPath);
+            parent::addCSS($listUri, $cssMediaType, $offset, $checkPath);
+
+            return true;
         }
 
-        return parent::addJS($listUri, $checkPath);
+        parent::addJS($listUri, $checkPath);
+
+        return true;
     }
 
     /**
@@ -1170,11 +1202,11 @@ class FrontControllerCore extends Controller
      * @param int|null     $offset
      * @param bool         $checkPath    If true, checks if files exists
      *
-     * @return true|void
+     * @return bool
      */
     public function addCSS($cssUri, $cssMediaType = 'all', $offset = null, $checkPath = true)
     {
-        return FrontController::addMedia($cssUri, $cssMediaType, $offset = null, false, $checkPath);
+        return static::addMedia($cssUri, $cssMediaType, $offset = null, false, $checkPath);
     }
 
     /**
@@ -1229,6 +1261,7 @@ class FrontControllerCore extends Controller
     {
         if ($this->checkLiveEditAccess()) {
             $data = $this->context->smarty->createData();
+            // @codingStandardsIgnoreStart
             $data->assign(
                 [
                     'ad'        => Tools::getValue('ad'),
@@ -1237,6 +1270,7 @@ class FrontControllerCore extends Controller
                     'id_shop'   => $this->context->shop->id,
                 ]
             );
+            // @codingStandardsIgnoreEnd
 
             return $this->context->smarty->createTemplate(_PS_ALL_THEMES_DIR_.'live_edit.tpl', $data)->fetch();
         } else {
@@ -1544,20 +1578,22 @@ class FrontControllerCore extends Controller
                 $cart->update();
             }
             /* Select an address if not set */
-            if (isset($cart) && (!isset($cart->id_address_delivery) || $cart->id_address_delivery == 0 ||
-                    !isset($cart->id_address_invoice) || $cart->id_address_invoice == 0) && $this->context->cookie->id_customer
-            ) {
-                $toUpdate = false;
-                if (!isset($cart->id_address_delivery) || $cart->id_address_delivery == 0) {
-                    $toUpdate = true;
-                    $cart->id_address_delivery = (int) Address::getFirstCustomerAddressId($cart->id_customer);
-                }
-                if (!isset($cart->id_address_invoice) || $cart->id_address_invoice == 0) {
-                    $toUpdate = true;
-                    $cart->id_address_invoice = (int) Address::getFirstCustomerAddressId($cart->id_customer);
-                }
-                if ($toUpdate) {
-                    $cart->update();
+            if (isset($cart) && $this->context->cookie->id_customer
+                && (!$cart->id_address_delivery || !$cart->id_address_invoice)) {
+                $idFirstAddress = (int) Address::getFirstCustomerAddressId($cart->id_customer);
+                if ($idFirstAddress) {
+                    $toUpdate = false;
+                    if (!$cart->id_address_delivery) {
+                        $toUpdate = true;
+                        $cart->id_address_delivery = $idFirstAddress;
+                    }
+                    if (!$cart->id_address_invoice) {
+                        $toUpdate = true;
+                        $cart->id_address_invoice = $idFirstAddress;
+                    }
+                    if ($toUpdate) {
+                        $cart->update();
+                    }
                 }
             }
         }
@@ -1830,6 +1866,8 @@ class FrontControllerCore extends Controller
         } else {
             return false;
         }
+
+        return false;
     }
 
     /**
@@ -1891,7 +1929,7 @@ class FrontControllerCore extends Controller
                     $this->context->smarty->assign(
                         [
                             'restricted_country_mode' => true,
-                            'geolocation_country'     => isset($record->country_name) && $record->country_name ? $record->country_name : 'Undefined',
+                            'geolocation_country'     => isset($record) && isset($record->country_name) && $record->country_name ? $record->country_name : 'Undefined',
                         ]
                     );
                 }
@@ -2050,7 +2088,7 @@ class FrontControllerCore extends Controller
      */
     public function removeCSS($cssUri, $cssMediaType = 'all', $checkPath = true)
     {
-        return FrontController::removeMedia($cssUri, $cssMediaType, $checkPath);
+        return static::removeMedia($cssUri, $cssMediaType, $checkPath);
     }
 
     /**
@@ -2066,7 +2104,7 @@ class FrontControllerCore extends Controller
      */
     public function removeMedia($mediaUri, $cssMediaType = null, $checkPath = true)
     {
-        FrontController::addMedia($mediaUri, $cssMediaType, null, true, $checkPath);
+        static::addMedia($mediaUri, $cssMediaType, null, true, $checkPath);
     }
 
     /**
@@ -2081,7 +2119,7 @@ class FrontControllerCore extends Controller
      */
     public function removeJS($jsUri, $checkPath = true)
     {
-        return FrontController::removeMedia($jsUri, null, $checkPath);
+        return static::removeMedia($jsUri, null, $checkPath);
     }
 
     /**

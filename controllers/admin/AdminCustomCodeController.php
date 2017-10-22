@@ -20,7 +20,7 @@ class AdminCustomCodeControllerCore extends AdminController
         $this->table = 'configuration';
         $this->bootstrap = true;
 
-        $fields = array(
+        $fields = [
             Configuration::CUSTOMCODE_METAS => [
                 'title'                     => $this->l('Add extra metas to the header'),
                 'desc'                      => $this->l('You can use this form to add extra meta tags to your front office'),
@@ -51,7 +51,7 @@ class AdminCustomCodeControllerCore extends AdminController
                 'enableLiveAutocompletion'  => true,
                 'visibility'                => Shop::CONTEXT_ALL,
             ],
-        );
+        ];
 
         $fields2 = [
             Configuration::CUSTOMCODE_ORDERCONF_JS => [
@@ -67,26 +67,16 @@ class AdminCustomCodeControllerCore extends AdminController
         ];
 
         $this->fields_options = [
-            'general'            => [
-                'title'  => $this->l('General'),
-                'icon'   => 'icon-cogs',
-                'fields' => $fields,
-                'submit' => ['title' => $this->l('Save')],
+            'general' => [
+                'title'       => $this->l('General'),
+                'icon'        => 'icon-cogs',
+                'description' => $this->l('On this page you can add extra HTML between the &lt;head&gt; tags, extra CSS or JavaScript to your pages. JavaScript should NOT be enclosed with &lt;script&gt; tags. This is done by thirty bees already.').((Configuration::get('PS_USE_HTMLPURIFIER') ? '<br><strong>'.$this->l('Note that the HTMLPurifier library has been activated. Not all HTML tags will be accepted.').'</strong>' : '')),
+                'fields'      => $fields,
+                'submit'      => ['title' => $this->l('Save')],
             ],
             'order_confirmation' => [
                 'title'       => $this->l('Order Confirmation Page'),
-                'description' => $this->l('Available variables:').'<br/>
-                                bought_products '.$this->l('(List of products in JSON format)').'<br/>
-                                total_products_tax_incl<br/>
-                                total_products_tax_excl<br/>
-                                total_shipping_tax_incl<br/>
-                                total_shipping_tax_excl<br/>
-                                total_discounts_tax_incl<br/>
-                                total_discounts_tax_excl<br/>
-                                total_paid_tax_incl<br/>
-                                total_paid_tax_excl<br/>
-                                id_customer<br/>
-                                currency.iso_code',
+                'description' => $this->l('Available variables:').'<br/>bought_products '.$this->l('(List of products in JSON format)').'<br/>total_products_tax_incl<br/>total_products_tax_excl<br/>total_shipping_tax_incl<br/>total_shipping_tax_excl<br/>total_discounts_tax_incl<br/>total_discounts_tax_excl<br/>total_paid_tax_incl<br/>total_paid_tax_excl<br/>id_customer<br/>currency.iso_code',
                 'icon'        => 'icon-cogs',
                 'fields'      => $fields2,
                 'submit'      => ['title' => $this->l('Save')],

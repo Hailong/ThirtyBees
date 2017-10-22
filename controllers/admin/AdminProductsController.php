@@ -768,6 +768,16 @@ class AdminProductsControllerCore extends AdminController
             ) {
                 if ($product->hasAttributes()) {
                     Product::updateDefaultAttribute($product->id);
+                } else {
+	                // Set stock quantity
+	                $quantityAttributeOld = Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue(
+		                (new DbQuery())
+			                ->select('`quantity`')
+			                ->from('stock_available')
+			                ->where('`id_product` = '.(int) $idProductOld)
+			                ->where('`id_product_attribute` = 0')
+	                );
+	                StockAvailable::setQuantity((int) $product->id, 0, (int) $quantityAttributeOld);
                 }
 
                 if (!Tools::getValue('noimage') && !Image::duplicateProductImages($idProductOld, $product->id, $combinationImages)) {
@@ -2086,7 +2096,7 @@ class AdminProductsControllerCore extends AdminController
     }
 
     /**
-     * delete all items in pack, then check if type_product value is 2.
+     * delete all items in pack, then check if type_product value is PTYPE_PACK.
      * if yes, add the pack items from input "inputPackItems"
      *
      * @param Product $product
@@ -2245,6 +2255,10 @@ class AdminProductsControllerCore extends AdminController
     public function getPreviewUrl(Product $product)
     {
         $idLang = Configuration::get('PS_LANG_DEFAULT', null, null, Context::getContext()->shop->id);
+
+        if (!Validate::isLoadedObject($product) || !$product->id_category_default) {
+            return $this->l('Unable to determine the preview URL. This product has not been linked with a category, yet.');
+        }
 
         if (!ShopUrl::getMainShopDomain()) {
             return false;
@@ -4067,11 +4081,17 @@ class AdminProductsControllerCore extends AdminController
 
         $context = Context::getContext();
         $rewrittenLinks = [];
-        foreach ($this->_languages as $language) {
-            $rewrittenLinks[(int) $language['id_lang']] = explode(
-                '[REWRITE]',
-                rtrim($context->link->getCategoryLink($product->id_category_default, null, (int) $language['id_lang']), '/').'/'
-            );
+        if (!Validate::isLoadedObject($product) || !$product->id_category_default) {
+            foreach ($this->_languages as $language) {
+                $rewrittenLinks[(int) $language['id_lang']] = [$this->l('Unable to determine the preview URL. This product has not been linked with a category, yet.')];
+            }
+        } else {
+            foreach ($this->_languages as $language) {
+                $rewrittenLinks[(int) $language['id_lang']] = explode(
+                    '[REWRITE]',
+                    $context->link->getProductLink($product->id, '[REWRITE]', (int) $product->id_category_default)
+                );
+            }
         }
 
         $data->assign(
@@ -4258,12 +4278,8 @@ class AdminProductsControllerCore extends AdminController
         $product->productDownload->nb_days_accessible = ($product->productDownload->id > 0) ? $product->productDownload->nb_days_accessible : htmlentities(Tools::getValue('virtual_product_nb_days'), ENT_COMPAT, 'UTF-8');
         $product->productDownload->is_shareable = $product->productDownload->id > 0 && $product->productDownload->is_shareable;
 
-        $isoTinyMce = $this->context->language->iso_code;
-        $isoTinyMce = (file_exists(_PS_JS_DIR_.'tiny_mce/langs/'.$isoTinyMce.'.js') ? $isoTinyMce : 'en');
         $data->assign(
             [
-                'ad'                            => __PS_BASE_URI__.basename(_PS_ADMIN_DIR_),
-                'iso_tiny_mce'                  => $isoTinyMce,
                 'product'                       => $product,
                 'token'                         => $this->token,
                 'currency'                      => $currency,
